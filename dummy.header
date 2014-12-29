@@ -1,0 +1,8 @@
+HTTP/1.0 200 OK
+Connection: close
+Server: MJPEG-Relay
+Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0
+Pragma: no-cache
+Expires: -1
+Content-Type: multipart/x-mixed-replace;boundary={boundaryKey}
+
