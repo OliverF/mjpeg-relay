@@ -7,6 +7,43 @@ import os
 import Queue
 import re
 
+class StreamingClient:
+
+	def __init__(self, sock):
+		self.sock = sock
+		sock.settimeout(5) #long timeout to allow clients some flexibility
+		self.streamBuffer = ""
+		self.streamQueue = Queue.Queue()
+		self.streamThread = threading.Thread(target = self.stream)
+		self.streamThread.daemon = True
+		self.connected = True
+		self.kill = False
+
+	def start(self):
+		self.streamThread.start()
+
+	def bufferStreamData(self, data):
+		#use a thread-safe queue to ensure stream buffer is not modified while we're sending it
+		self.streamQueue.put(data)
+
+	def stream(self):
+		while True:
+			if (self.kill):
+				self.sock.close()
+				return
+
+			if (not self.streamQueue.empty()):
+				self.streamBuffer += self.streamQueue.get()
+
+			if (len(self.streamBuffer) > 0):
+				try:
+					streamedTo = self.sock.send(self.streamBuffer)
+					self.streamBuffer = self.streamBuffer[streamedTo:]
+				except socket.error, e:
+					self.connected = False
+					self.sock.close()
+					return
+
 class RequestHandler:
 	"""Handles the initial connection with the client"""
 
@@ -78,9 +115,10 @@ class RequestHandler:
 			elif ("/stream" in requestPath):
 				print "Client connected, sending dummy header"
 				clientsock.sendall(self.dummyHeader.format(boundaryKey = self.broadcast.boundarySeparator))
-
+				client = StreamingClient(clientsock)
+				client.start()
 				print "Adding client to join waiting queue"
-				self.broadcast.joiningClients.put(clientsock) #blocking, no timeout
+				self.broadcast.joiningClients.put(client) #blocking, no timeout
 			else:
 				clientsock.close()
 		else:
@@ -196,19 +234,18 @@ class Broadcaster:
 				return
 
 			if (self.kill == True):
-				for sock in self.clients:
-					sock.close()
 				self.sourcesock.close()
+				for client in self.clients:
+					client.kill = True
 				return
 
 			#broadcast to connected clients
-			for sock in self.clients:
-				try:
-					sock.sendall(data)
-				except:
-					self.clients.remove(sock)
+			for client in self.clients:
+				if (not client.connected):
+					self.clients.remove(client)
 					self.clientCount -= 1
 					print "Client left. Client count: {}".format(len(self.clients))
+				client.bufferStreamData(data)
 
 			self.status.addToBytesIn(len(data))
 			self.status.addToBytesOut(len(data)*len(self.clients))
@@ -223,11 +260,15 @@ class Broadcaster:
 
 					while (not self.joiningClients.empty()):
 						print "Joining..."
-						acceptsock = self.joiningClients.get()
-						acceptsock.sendall(catchup)
-						self.clients.append(acceptsock)
-						self.clientCount += 1
-						print "Client has joined! Client count: {}".format(len(self.clients))
+						try:
+							client = self.joiningClients.get()
+							client.bufferStreamData(catchup)
+							self.clients.append(client)
+							self.clientCount += 1
+							print "Client has joined! Client count: {}".format(len(self.clients))
+						except Exception, e:
+							print "Failed to join client to stream: {}".format(e)
+
 
 class Status:
 	def __init__(self):
