@@ -119,6 +119,10 @@ class RequestHandler:
 				client.start()
 				print "Adding client to join waiting queue"
 				self.broadcast.joiningClients.put(client) #blocking, no timeout
+			elif ("/snapshot" in requestPath):
+				clientsock.sendall('HTTP/1.0 200 OK\r\n')
+				clientsock.sendall(self.broadcast.lastFrame)
+				clientsock.close()
 			else:
 				clientsock.close()
 		else:
@@ -168,6 +172,9 @@ class Broadcaster:
 			return
 
 		print "Boundary separator: {}".format(self.boundarySeparator)
+
+		self.lastFrame = ""
+		self.lastFrameBuffer = ""
 
 	def start(self):
 		self.broadcastThread.start()
@@ -249,6 +256,16 @@ class Broadcaster:
 
 			self.status.addToBytesIn(len(data))
 			self.status.addToBytesOut(len(data)*len(self.clients))
+
+			self.lastFrameBuffer += data
+			if (self.lastFrameBuffer.count(self.boundarySeparator) == 2):
+				#calculate the start and end points of the frame
+				start = self.lastFrameBuffer.find(self.boundarySeparator) + (len(self.boundarySeparator) - 1)
+				end = self.lastFrameBuffer.find(self.boundarySeparator, start)
+				#extract latest frame data
+				self.lastFrame = self.lastFrameBuffer[start:end]
+				#delete the frame now that it has been extracted, keep what remains in the buffer (faster, won't miss part of the next frame)
+				self.lastFrameBuffer = self.lastFrameBuffer[end:]
 
 			if (not self.joiningClients.empty()):
 				pos = data.find(self.boundarySeparator)
