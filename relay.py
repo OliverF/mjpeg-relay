@@ -146,6 +146,7 @@ class Broadcaster:
 
 	def __init__(self, address, port, url, status):
 		self.headerType = "multipart/x-mixed-replace"
+		self.url = url
 
 		self.clients = []
 		self.joiningClients = Queue.Queue()
@@ -157,27 +158,32 @@ class Broadcaster:
 		self.broadcastThread = threading.Thread(target = self.streamFromSource)
 		self.broadcastThread.daemon = True
 
-		try:
-			self.sourcesock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			self.sourcesock.connect((address, port))
-			print "Connected to stream source"
-		except Exception, e:
-			print "Error: Unable to connect to stream source at {}:{}: {}".format(address, port, e)
-			return
-
-		self.boundarySeparator = self.parseStreamHeader(self.getStreamHeader(self.sourcesock, url))
-
-		if (not self.boundarySeparator):
-			print "Unable to find boundary separator in the header returned from the stream source"
-			return
-
-		print "Boundary separator: {}".format(self.boundarySeparator)
-
 		self.lastFrame = ""
 		self.lastFrameBuffer = ""
 
 	def start(self):
-		self.broadcastThread.start()
+		if (self.connectToStream()):
+			print "Connected to stream source, boundary separator: {}".format(self.boundarySeparator)
+			self.broadcastThread.start()
+
+	#
+	# Connects to the stream source
+	#
+	def connectToStream(self):
+		try:
+			self.sourcesock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self.sourcesock.connect((address, port))
+		except Exception, e:
+			print "Error: Unable to connect to stream source at {}:{}: {}".format(address, port, e)
+			return False
+
+		self.boundarySeparator = self.parseStreamHeader(self.getStreamHeader(self.sourcesock, self.url))
+
+		if (not self.boundarySeparator):
+			print "Unable to find boundary separator in the header returned from the stream source"
+			return False
+
+		return True
 
 	#
 	# Reads the initial stream header
