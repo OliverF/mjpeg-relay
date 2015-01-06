@@ -113,12 +113,15 @@ class RequestHandler:
 				clientsock.sendall(self.statusCSS)
 				clientsock.close()
 			elif ("/stream" in requestPath):
-				print "Client connected, sending dummy header"
-				clientsock.sendall(self.dummyHeader.format(boundaryKey = self.broadcast.boundarySeparator))
-				client = StreamingClient(clientsock)
-				client.start()
-				print "Adding client to join waiting queue"
-				self.broadcast.joiningClients.put(client) #blocking, no timeout
+				if (self.broadcast.broadcasting):
+					print "Client connected, sending dummy header"
+					clientsock.sendall(self.dummyHeader.format(boundaryKey = self.broadcast.boundarySeparator))
+					client = StreamingClient(clientsock)
+					client.start()
+					print "Adding client to join waiting queue"
+					self.broadcast.joiningClients.put(client) #blocking, no timeout
+				else:
+					clientsock.close()
 			elif ("/snapshot" in requestPath):
 				clientsock.sendall('HTTP/1.0 200 OK\r\n')
 				clientsock.sendall(self.broadcast.lastFrame)
@@ -161,8 +164,21 @@ class Broadcaster:
 		self.lastFrame = ""
 		self.lastFrameBuffer = ""
 
+		self.connected = False
+		self.broadcasting = False
+
+		feedLostFile = open("feedlost.jpeg", "rb") #read-only, binary
+		feedLostImage = feedLostFile.read()
+		feedLostFile.close()
+
+		self.feedLostFrame = 	"Content-Type: image/jpeg\r\n"\
+								"Content-Length: {}\r\n\r\n"\
+								"{}".format(len(feedLostImage), feedLostImage)
+
 	def start(self):
 		if (self.connectToStream()):
+			self.connected = True
+			self.broadcasting = True
 			print "Connected to stream source, boundary separator: {}".format(self.boundarySeparator)
 			self.broadcastThread.start()
 
@@ -240,11 +256,15 @@ class Broadcaster:
 	#
 	def streamFromSource(self):
 		while True:
-			data = self.sourcesock.recv(1024)
+			if (not self.connected):
+				data = "--" + self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
+				time.sleep(1) #the stream is a static image, we can save bandwidth by sleeping
+			else:
+				data = self.sourcesock.recv(1024)
 
 			if (data == ""):
 				print "Lost connection to the stream source"
-				return
+				self.connected = False
 
 			if (self.kill == True):
 				self.sourcesock.close()
