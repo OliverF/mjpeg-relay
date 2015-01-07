@@ -167,13 +167,17 @@ class Broadcaster:
 		self.connected = False
 		self.broadcasting = False
 
-		feedLostFile = open("feedlost.jpeg", "rb") #read-only, binary
-		feedLostImage = feedLostFile.read()
-		feedLostFile.close()
+		try:	
+			feedLostFile = open("feedlost.jpeg", "rb") #read-only, binary
+			feedLostImage = feedLostFile.read()
+			feedLostFile.close()
 
-		self.feedLostFrame = 	"Content-Type: image/jpeg\r\n"\
-								"Content-Length: {}\r\n\r\n"\
-								"{}".format(len(feedLostImage), feedLostImage)
+			self.feedLostFrame = 	"Content-Type: image/jpeg\r\n"\
+									"Content-Length: {}\r\n\r\n"\
+									"{}".format(len(feedLostImage), feedLostImage)
+		except IOError, e:
+			print "Unable to read feedlost.jpeg: {}".format(e)
+			self.feedLostFrame = False
 
 	def start(self):
 		if (self.connectToStream()):
@@ -257,6 +261,10 @@ class Broadcaster:
 	def streamFromSource(self):
 		while True:
 			if (not self.connected):
+				if (not self.feedLostFrame):
+					#nothing to display, quit
+					self.broadcasting = False
+					return
 				data = "--" + self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
 				time.sleep(1) #the stream is a static image, we can save bandwidth by sleeping
 			else:
