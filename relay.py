@@ -6,6 +6,7 @@ from optparse import OptionParser
 import os
 import Queue
 import re
+import logging
 
 class StreamingClient:
 
@@ -91,7 +92,7 @@ class RequestHandler:
 					break #as soon as the header is sent - we only care about GET requests
 
 			except Exception, e:
-				print e
+				logging.info(e)
 				break
 		
 		if (buff != ""):
@@ -100,7 +101,7 @@ class RequestHandler:
 
 				requestPath = match.group(1)
 			except Exception, e:
-				print "Client sent unexpected request: {}".format(buff)
+				logging.info("Client sent unexpected request: {}".format(buff))
 				return
 
 			#explicitly deal with individual requests. Verbose, but more secure
@@ -114,11 +115,11 @@ class RequestHandler:
 				clientsock.close()
 			elif ("/stream" in requestPath):
 				if (self.broadcast.broadcasting):
-					print "Client connected, sending dummy header"
+					logging.info("Client connected, sending dummy header")
 					clientsock.sendall(self.dummyHeader.format(boundaryKey = self.broadcast.boundarySeparator))
 					client = StreamingClient(clientsock)
 					client.start()
-					print "Adding client to join waiting queue"
+					logging.info("Adding client to join waiting queue")
 					self.broadcast.joiningClients.put(client) #blocking, no timeout
 				else:
 					clientsock.close()
@@ -129,7 +130,7 @@ class RequestHandler:
 			else:
 				clientsock.close()
 		else:
-			print "Client connected but didn't make a request"
+			logging.info("Client connected but didn't make a request")
 
 	#
 	# Thread to handle connecting clients
@@ -176,14 +177,14 @@ class Broadcaster:
 									"Content-Length: {}\r\n\r\n"\
 									"{}".format(len(feedLostImage), feedLostImage)
 		except IOError, e:
-			print "Unable to read feedlost.jpeg: {}".format(e)
+			logging.warning("Unable to read feedlost.jpeg: {}".format(e))
 			self.feedLostFrame = False
 
 	def start(self):
 		if (self.connectToStream()):
 			self.connected = True
 			self.broadcasting = True
-			print "Connected to stream source, boundary separator: {}".format(self.boundarySeparator)
+			logging.info("Connected to stream source, boundary separator: {}".format(self.boundarySeparator))
 			self.broadcastThread.start()
 
 	#
@@ -194,13 +195,13 @@ class Broadcaster:
 			self.sourcesock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.sourcesock.connect((address, port))
 		except Exception, e:
-			print "Error: Unable to connect to stream source at {}:{}: {}".format(address, port, e)
+			logging.error("Error: Unable to connect to stream source at {}:{}: {}".format(address, port, e))
 			return False
 
 		self.boundarySeparator = self.parseStreamHeader(self.getStreamHeader(self.sourcesock, self.url))
 
 		if (not self.boundarySeparator):
-			print "Unable to find boundary separator in the header returned from the stream source"
+			logging.error("Unable to find boundary separator in the header returned from the stream source")
 			return False
 
 		return True
@@ -239,11 +240,11 @@ class Broadcaster:
 		match = re.search(r'Content-Type: (.*?)[;\s]', header, re.IGNORECASE)
 		try:
 			if (match.group(1) != self.headerType):
-				print "Unexpected header returned from stream source: expecting {}, got {}".format(self.headerType, match.group(1))
+				logging.error("Unexpected header returned from stream source: expecting {}, got {}".format(self.headerType, match.group(1)))
 				return None
 		except:
-			print "Unexpected header returned from stream source: unable to parse Content-Type"
-			print header
+			logging.error("Unexpected header returned from stream source: unable to parse Content-Type")
+			logging.error(header)
 			return None
 
 		#get boundary
@@ -251,8 +252,8 @@ class Broadcaster:
 		try:
 			return match.group(1)
 		except:
-			print "Unexpected header returned from stream source: unable to parse boundary"
-			print header
+			logging.error("Unexpected header returned from stream source: unable to parse boundary")
+			logging.error(header)
 			return None
 
 	#
@@ -271,7 +272,7 @@ class Broadcaster:
 				data = self.sourcesock.recv(1024)
 
 			if (data == ""):
-				print "Lost connection to the stream source"
+				logging.error("Lost connection to the stream source")
 				self.connected = False
 
 			if (self.kill == True):
@@ -285,7 +286,7 @@ class Broadcaster:
 				if (not client.connected):
 					self.clients.remove(client)
 					self.clientCount -= 1
-					print "Client left. Client count: {}".format(len(self.clients))
+					logging.info("Client left. Client count: {}".format(len(self.clients)))
 				client.bufferStreamData(data)
 
 			self.status.addToBytesIn(len(data))
@@ -304,21 +305,21 @@ class Broadcaster:
 			if (not self.joiningClients.empty()):
 				pos = data.find(self.boundarySeparator)
 				if (pos != -1):
-					print "Ready to join waiting clients to stream..."
+					logging.info("Ready to join waiting clients to stream...")
 					#waiting clients can join the stream from this moment on
 					#first, send the data from the boundary key to the end of what we have in the buffer
 					catchup = data[pos:]
 
 					while (not self.joiningClients.empty()):
-						print "Joining..."
+						logging.info("Joining...")
 						try:
 							client = self.joiningClients.get()
 							client.bufferStreamData(catchup)
 							self.clients.append(client)
 							self.clientCount += 1
-							print "Client has joined! Client count: {}".format(len(self.clients))
+							logging.info("Client has joined! Client count: {}".format(len(self.clients)))
 						except Exception, e:
-							print "Failed to join client to stream: {}".format(e)
+							logging.info("Failed to join client to stream: {}".format(e))
 
 
 class Status:
@@ -360,6 +361,7 @@ if __name__ == '__main__':
 	op = OptionParser(usage = "%prog [options] stream-source-address stream-source-url")
 
 	op.add_option("-p", "--port", action="store", default = 54321, dest="port", help = "Port to broadcast the MJPEG stream on")
+	op.add_option("-q", "--quiet", action="store_true", default = False, dest="quiet", help = "Silence non-essential output")
 
 	(options, args) = op.parse_args()
 
@@ -367,10 +369,12 @@ if __name__ == '__main__':
 		op.print_help()
 		sys.exit(1)
 
+	logging.basicConfig(level=logging.WARNING if options.quiet else logging.INFO, format="%(message)s")
+
 	try:
 		options.port = int(options.port)
 	except ValueError:
-		print "Port must be numeric"
+		logging.error("Port must be numeric")
 		op.print_help()
 		sys.exit(1)
 
@@ -378,7 +382,7 @@ if __name__ == '__main__':
 		address, port = args[0].split(":", 2)
 		port = int(port)
 	except ValueError:
-		print "stream-source-address should be in the format host:port"
+		logging.error("stream-source-address should be in the format host:port")
 		op.print_help()
 		sys.exit(1)
 
