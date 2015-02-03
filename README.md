@@ -11,9 +11,10 @@ The script is designed to be simple to use with minimal configuration. All video
 - Status page
 
 # Usage
-`relay.py [-p <relay port>] stream-source-address stream-source-url`
+`relay.py [-p <relay port>] [-q] stream-source-address stream-source-url`
 
 - **-p \<relay port\>**: Port that the stream will be relayed on (default is 54321)
+- **-q**: Silence non-essential output
 - **stream-source-address**: IP address and port of the remote stream source
 - **stream-source-url**: URL for the stream source
 
