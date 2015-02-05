@@ -211,8 +211,7 @@ class Broadcaster:
 	#
 	def getStreamHeader(self, sock, url):
 		#send GET request to begin the stream
-		get = "GET {} HTTP/1.1\r\n\
-		Connection=keep-alive\r\n\r\n".format(url)
+		get = "GET {} HTTP/1.1\r\nConnection: keep-alive\r\n\r\n".format(url)
 
 		sock.sendall(get)
 
