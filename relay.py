@@ -7,6 +7,7 @@ import os
 import Queue
 import re
 import logging
+import requests
 
 class StreamingClient:
 
@@ -148,7 +149,7 @@ class RequestHandler:
 class Broadcaster:
 	"""Handles relaying the source MJPEG stream to connected clients"""
 
-	def __init__(self, address, port, url, status):
+	def __init__(self, url, status):
 		self.headerType = "multipart/x-mixed-replace"
 		self.url = url
 
@@ -182,7 +183,6 @@ class Broadcaster:
 
 	def start(self):
 		if (self.connectToStream()):
-			self.connected = True
 			self.broadcasting = True
 			logging.info("Connected to stream source, boundary separator: {}".format(self.boundarySeparator))
 			self.broadcastThread.start()
@@ -192,39 +192,19 @@ class Broadcaster:
 	#
 	def connectToStream(self):
 		try:
-			self.sourcesock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			self.sourcesock.connect((address, port))
+			self.sourceStream = requests.get(self.url, stream = True, timeout = 10)
 		except Exception, e:
-			logging.error("Error: Unable to connect to stream source at {}:{}: {}".format(address, port, e))
+			logging.error("Error: Unable to connect to stream source at {}: {}".format(self.url, e))
 			return False
 
-		self.boundarySeparator = self.parseStreamHeader(self.getStreamHeader(self.sourcesock, self.url))
+		self.boundarySeparator = self.parseStreamHeader(self.sourceStream.headers['Content-Type'])
 
 		if (not self.boundarySeparator):
 			logging.error("Unable to find boundary separator in the header returned from the stream source")
 			return False
 
+		self.connected = True
 		return True
-
-	#
-	# Reads the initial stream header
-	#
-	def getStreamHeader(self, sock, url):
-		#send GET request to begin the stream
-		get = "GET {} HTTP/1.1\r\nConnection: keep-alive\r\n\r\n".format(url)
-
-		sock.sendall(get)
-
-		buff = ""
-		while (buff.find("\r\n\r\n") == -1):
-			d = sock.recv(1)
-
-			if (d == ""):
-				break
-
-			buff += d
-
-		return buff
 
 	#
 	# Parses the stream header and returns the boundary separator
@@ -233,20 +213,6 @@ class Broadcaster:
 		if (not isinstance(header, str)):
 			return None
 
-		header = header.replace("\r\n", "\n")
-
-		#check for multipart header
-		match = re.search(r'Content-Type: (.*?)[;\s]', header, re.IGNORECASE)
-		try:
-			if (match.group(1) != self.headerType):
-				logging.error("Unexpected header returned from stream source: expecting {}, got {}".format(self.headerType, match.group(1)))
-				return None
-		except:
-			logging.error("Unexpected header returned from stream source: unable to parse Content-Type")
-			logging.error(header)
-			return None
-
-		#get boundary
 		match = re.search(r'boundary=(.*)', header, re.IGNORECASE)
 		try:
 			return match.group(1)
@@ -256,69 +222,71 @@ class Broadcaster:
 			return None
 
 	#
+	# Broadcast data to all connected clients
+	#
+	def broadcast(self, data):
+		#broadcast to connected clients
+		for client in self.clients:
+			if (not client.connected):
+				self.clients.remove(client)
+				self.clientCount -= 1
+				logging.info("Client left. Client count: {}".format(len(self.clients)))
+			client.bufferStreamData(data)
+
+		self.status.addToBytesIn(len(data))
+		self.status.addToBytesOut(len(data)*len(self.clients))
+
+		self.lastFrameBuffer += data
+		if (self.lastFrameBuffer.count(self.boundarySeparator) == 2):
+			#calculate the start and end points of the frame
+			start = self.lastFrameBuffer.find(self.boundarySeparator) + (len(self.boundarySeparator) - 1)
+			end = self.lastFrameBuffer.find(self.boundarySeparator, start)
+			#extract latest frame data
+			self.lastFrame = self.lastFrameBuffer[start:end]
+			#delete the frame now that it has been extracted, keep what remains in the buffer (faster, won't miss part of the next frame)
+			self.lastFrameBuffer = self.lastFrameBuffer[end:]
+
+		if (not self.joiningClients.empty()):
+			pos = data.find(self.boundarySeparator)
+			if (pos != -1):
+				logging.info("Ready to join waiting clients to stream...")
+				#waiting clients can join the stream from this moment on
+				#first, send the data from the boundary key to the end of what we have in the buffer
+				catchup = data[pos:]
+
+				while (not self.joiningClients.empty()):
+					logging.info("Joining...")
+					try:
+						client = self.joiningClients.get()
+						client.bufferStreamData(catchup)
+						self.clients.append(client)
+						self.clientCount += 1
+						logging.info("Client has joined! Client count: {}".format(len(self.clients)))
+					except Exception, e:
+						logging.info("Failed to join client to stream: {}".format(e))
+
+	#
 	# Thread to handle reading the source of the stream and rebroadcasting
 	#
 	def streamFromSource(self):
 		while True:
-			if (not self.connected):
-				if (not self.feedLostFrame):
-					#nothing to display, quit
-					self.broadcasting = False
-					return
-				data = "--" + self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
-				time.sleep(1) #the stream is a static image, we can save bandwidth by sleeping
-			else:
-				data = self.sourcesock.recv(1024)
-
-			if (data == ""):
-				logging.error("Lost connection to the stream source")
+			try:
+				for data in self.sourceStream.iter_content(1024):
+					if (self.kill == True):
+						for client in self.clients:
+							client.kill = True
+						return
+					self.broadcast(data)
+			except Exception, e:
+				logging.error("Lost connection to the stream source: {}".format(e))
+			finally:
 				self.connected = False
-
-			if (self.kill == True):
-				self.sourcesock.close()
-				for client in self.clients:
-					client.kill = True
-				return
-
-			#broadcast to connected clients
-			for client in self.clients:
-				if (not client.connected):
-					self.clients.remove(client)
-					self.clientCount -= 1
-					logging.info("Client left. Client count: {}".format(len(self.clients)))
-				client.bufferStreamData(data)
-
-			self.status.addToBytesIn(len(data))
-			self.status.addToBytesOut(len(data)*len(self.clients))
-
-			self.lastFrameBuffer += data
-			if (self.lastFrameBuffer.count(self.boundarySeparator) == 2):
-				#calculate the start and end points of the frame
-				start = self.lastFrameBuffer.find(self.boundarySeparator) + (len(self.boundarySeparator) - 1)
-				end = self.lastFrameBuffer.find(self.boundarySeparator, start)
-				#extract latest frame data
-				self.lastFrame = self.lastFrameBuffer[start:end]
-				#delete the frame now that it has been extracted, keep what remains in the buffer (faster, won't miss part of the next frame)
-				self.lastFrameBuffer = self.lastFrameBuffer[end:]
-
-			if (not self.joiningClients.empty()):
-				pos = data.find(self.boundarySeparator)
-				if (pos != -1):
-					logging.info("Ready to join waiting clients to stream...")
-					#waiting clients can join the stream from this moment on
-					#first, send the data from the boundary key to the end of what we have in the buffer
-					catchup = data[pos:]
-
-					while (not self.joiningClients.empty()):
-						logging.info("Joining...")
-						try:
-							client = self.joiningClients.get()
-							client.bufferStreamData(catchup)
-							self.clients.append(client)
-							self.clientCount += 1
-							logging.info("Client has joined! Client count: {}".format(len(self.clients)))
-						except Exception, e:
-							logging.info("Failed to join client to stream: {}".format(e))
+				while (not self.connected):
+					if (self.feedLostFrame):
+						data = "--" + self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
+						self.broadcast(data)
+					time.sleep(5)
+					self.connectToStream()
 
 
 class Status:
@@ -357,18 +325,19 @@ def quit():
 	sys.exit(1)
 
 if __name__ == '__main__':
-	op = OptionParser(usage = "%prog [options] stream-source-address stream-source-url")
+	op = OptionParser(usage = "%prog [options] stream-source-url")
 
 	op.add_option("-p", "--port", action="store", default = 54321, dest="port", help = "Port to broadcast the MJPEG stream on")
 	op.add_option("-q", "--quiet", action="store_true", default = False, dest="quiet", help = "Silence non-essential output")
 
 	(options, args) = op.parse_args()
 
-	if (len(args) != 2):
+	if (len(args) != 1):
 		op.print_help()
 		sys.exit(1)
 
 	logging.basicConfig(level=logging.WARNING if options.quiet else logging.INFO, format="%(message)s")
+	logging.getLogger("requests").setLevel(logging.WARNING if options.quiet else logging.INFO)
 
 	try:
 		options.port = int(options.port)
@@ -377,20 +346,12 @@ if __name__ == '__main__':
 		op.print_help()
 		sys.exit(1)
 
-	try:
-		address, port = args[0].split(":", 2)
-		port = int(port)
-	except ValueError:
-		logging.error("stream-source-address should be in the format host:port")
-		op.print_help()
-		sys.exit(1)
-
 	status = Status()
 	statusthread = threading.Thread(target=status.run)
 	statusthread.daemon = True
 	statusthread.start()
 
-	broadcast = Broadcaster(address, port, args[1], status)
+	broadcast = Broadcaster(args[0], status)
 	broadcast.start()
 
 	requestHandler = RequestHandler(options.port, broadcast, status)
