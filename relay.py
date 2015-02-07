@@ -280,6 +280,8 @@ class Broadcaster:
 			except Exception, e:
 				logging.error("Lost connection to the stream source: {}".format(e))
 			finally:
+				#flush the frame buffer to avoid conflicting with future image data
+				self.lastFrameBuffer = ""
 				self.connected = False
 				while (not self.connected):
 					if (self.feedLostFrame):
