@@ -129,6 +129,7 @@ class RequestHandler:
 				clientsock.sendall(self.broadcast.lastFrame)
 				clientsock.close()
 			else:
+				clientsock.sendall('HTTP/1.0 302 FOUND\r\nLocation: /status')
 				clientsock.close()
 		else:
 			logging.info("Client connected but didn't make a request")
