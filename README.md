@@ -17,6 +17,12 @@ The script is designed to be simple to use with minimal configuration. All video
 - **-q**: Silence non-essential output
 - **stream-source-url**: URL of the existing MJPEG stream. If the stream is protected with HTTP authentication, supply the credentials via the URL like so: `http://user:password@ip:port/path/to/stream/`
 
+Once it is running, you can access the following URLs:
+
+* `/status`: the mjpeg-replay status of connected clients.
+* `/stream`: the mjpeg stream. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://localhost:54321/stream">`
+* `/snapshot`: the stream latest JPEG snapshot
+
 # Example
 
 **Relaying MJPEG stream at 192.0.2.1:1234/?action=stream on port 54017**
