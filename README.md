@@ -23,5 +23,5 @@ The script is designed to be simple to use with minimal configuration. All video
 
 1. Start the relay: `python relay.py -p 54017 "http://192.0.2.1:1234/?action=stream"`
 2. Confirm that mjpeg-relay has connected to the remote stream
-3. Connect to the relayed stream at `http://yourIP:54017/stream`. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://yourIP:54017/stream">`
-4. The status of mjpeg-relay is displayed at `http://yourIP:54017/status`
+3. Connect to the relayed stream at `http://localhost:54017/stream`. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://localhost:54017/stream">`
+4. The status of mjpeg-relay is displayed at `http://localhost:54017/status`
