@@ -19,9 +19,9 @@ The script is designed to be simple to use with minimal configuration. All video
 
 Once it is running, you can access the following URLs:
 
-* `/status`: the mjpeg-replay status of connected clients.
-* `/stream`: the mjpeg stream. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://localhost:54321/stream">`
-* `/snapshot`: the stream latest JPEG snapshot
+* `/status`: the status summary of mjpeg-relay
+* `/stream`: the MJPEG stream. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://localhost:54321/stream">`
+* `/snapshot`: the latest JPEG frame from the MJPEG stream
 
 # Example
 
