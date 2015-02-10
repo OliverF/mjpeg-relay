@@ -17,11 +17,17 @@ The script is designed to be simple to use with minimal configuration. All video
 - **-q**: Silence non-essential output
 - **stream-source-url**: URL of the existing MJPEG stream. If the stream is protected with HTTP authentication, supply the credentials via the URL like so: `http://user:password@ip:port/path/to/stream/`
 
+Once it is running, you can access the following URLs:
+
+* `/status`: the mjpeg-replay status of connected clients.
+* `/stream`: the mjpeg stream. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://localhost:54321/stream">`
+* `/snapshot`: the stream latest JPEG snapshot
+
 # Example
 
 **Relaying MJPEG stream at 192.0.2.1:1234/?action=stream on port 54017**
 
 1. Start the relay: `python relay.py -p 54017 "http://192.0.2.1:1234/?action=stream"`
 2. Confirm that mjpeg-relay has connected to the remote stream
-3. Connect to the relayed stream at `http://yourIP:54017/stream`. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://yourIP:54017/stream">`
-4. The status of mjpeg-relay is displayed at `http://yourIP:54017/status`
+3. Connect to the relayed stream at `http://localhost:54017/stream`. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://localhost:54017/stream">`
+4. The status of mjpeg-relay is displayed at `http://localhost:54017/status`

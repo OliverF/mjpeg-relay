@@ -95,7 +95,7 @@ class RequestHandler:
 			except Exception, e:
 				logging.info(e)
 				break
-		
+
 		if (buff != ""):
 			try:
 				match = re.search(r'GET (.*) ', buff)
@@ -129,6 +129,7 @@ class RequestHandler:
 				clientsock.sendall(self.broadcast.lastFrame)
 				clientsock.close()
 			else:
+				clientsock.sendall('HTTP/1.0 302 FOUND\r\nLocation: /status')
 				clientsock.close()
 		else:
 			logging.info("Client connected but didn't make a request")
@@ -169,7 +170,7 @@ class Broadcaster:
 		self.connected = False
 		self.broadcasting = False
 
-		try:	
+		try:
 			feedLostFile = open("feedlost.jpeg", "rb") #read-only, binary
 			feedLostImage = feedLostFile.read()
 			feedLostFile.close()
