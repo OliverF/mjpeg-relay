@@ -25,3 +25,12 @@ The script is designed to be simple to use with minimal configuration. All video
 2. Confirm that mjpeg-relay has connected to the remote stream
 3. Connect to the relayed stream at `http://yourIP:54017/stream`. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://yourIP:54017/stream">`
 4. The status of mjpeg-relay is displayed at `http://yourIP:54017/status`
+
+# Docker
+
+Here is the same example done with docker:
+
+``` shell
+docker build -t replay .
+docker run -d -p 54017:54321 replay "http://192.0.2.1:1234/?action=stream"
+```
