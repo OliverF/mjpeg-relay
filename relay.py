@@ -95,7 +95,7 @@ class RequestHandler:
 			except Exception, e:
 				logging.info(e)
 				break
-		
+
 		if (buff != ""):
 			try:
 				match = re.search(r'GET (.*) ', buff)
@@ -169,7 +169,7 @@ class Broadcaster:
 		self.connected = False
 		self.broadcasting = False
 
-		try:	
+		try:
 			feedLostFile = open("feedlost.jpeg", "rb") #read-only, binary
 			feedLostImage = feedLostFile.read()
 			feedLostFile.close()
