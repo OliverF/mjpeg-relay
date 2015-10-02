@@ -11,6 +11,10 @@ The script is designed to be simple to use with minimal configuration. All video
 - Status page
 - Option to stream to clients via WebSockets
 
+# Installation
+1. Clone this repository with `git clone <URL>`
+2. Ensure submodules are correctly installed by running `git submodule update --init`
+
 # Usage
 `relay.py [-p <relay port>] [-w <WebSocket port>] [-q] stream-source-url`
 
