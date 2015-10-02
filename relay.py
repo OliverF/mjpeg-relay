@@ -425,6 +425,7 @@ if __name__ == '__main__':
 
 	try:
 		options.port = int(options.port)
+		options.wsport = int(options.wsport)
 	except ValueError:
 		logging.error("Port must be numeric")
 		op.print_help()
