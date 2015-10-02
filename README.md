@@ -9,11 +9,13 @@ The script is designed to be simple to use with minimal configuration. All video
 - Low resource
 - Low latency
 - Status page
+- Option to stream to clients via WebSockets
 
 # Usage
-`relay.py [-p <relay port>] [-q] stream-source-url`
+`relay.py [-p <relay port>] [-w <WebSocket port>] [-q] stream-source-url`
 
 - **-p \<relay port\>**: Port that the stream will be relayed on (default is 54321)
+- **-w \<WebSocket port\>**: Port that the stream will be relayed on via WebSockets (default is 54322)
 - **-q**: Silence non-essential output
 - **stream-source-url**: URL of the existing MJPEG stream. If the stream is protected with HTTP authentication, supply the credentials via the URL like so: `http://user:password@ip:port/path/to/stream/`
 
@@ -30,6 +32,15 @@ Once it is running, you can access the following URLs:
 1. Start the relay: `python relay.py -p 54017 "http://192.0.2.1:1234/?action=stream"`
 2. Confirm that mjpeg-relay has connected to the remote stream
 3. Connect to the relayed stream at `http://localhost:54017/stream`. This can be embedded directly into an `<img>` tag on modern browsers like so: `<img src="http://localhost:54017/stream">`
+4. The status of mjpeg-relay is displayed at `http://localhost:54017/status`
+
+# WebSocket Example
+
+**As above, but also relaying the MJPEG stream via WebSockets on port 54018**
+
+1. Start the relay: `python relay.py -p 54017 -w 54018 "http://192.0.2.1:1234/?action=stream"`
+2. Confirm that mjpeg-relay has connected to the remote stream
+3. Copy and paste the example HTML and JavaScript in the file `websocketexample.html` into your website, and adapt as necessary
 4. The status of mjpeg-relay is displayed at `http://localhost:54017/status`
 
 # Docker

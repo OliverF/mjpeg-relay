@@ -1,0 +1,79 @@
+<html>
+	<head>
+		<title>mjpeg-relay example</title>
+	</head>
+	<body onload="connectToStream()">
+		<script language="javascript" type="text/javascript">
+
+			//--CONFIGURATION--
+
+			var websocketAddress = "ws://localhost:54018";
+			var imageWidth = "350px";
+			var imageHeight = "225px";
+
+			//--END OF CONFIGURATION--
+
+			var frameBuffer = new Array();
+			var frameCount = 0;
+
+			function imageOnload()
+			{
+				//bring the new image to the top
+				this.style.zIndex = frameCount;
+
+				while (frameBuffer.length > 10)
+				{
+					//remove oldest frames, keeping a buffer of 10 most recent frames to avoid flickering
+					var oldFrame = frameBuffer.shift();
+					oldFrame.parentNode.removeChild(oldFrame);
+				}
+
+				frameBuffer.push(this);
+			}
+
+			function connectToStream()
+			{
+				websocket = new WebSocket(websocketAddress);
+				websocket.onopen = function(evt) { onOpen(evt) };
+				websocket.onclose = function(evt) { onClose(evt) };
+				websocket.onmessage = function(evt) { onMessage(evt) };
+				websocket.onerror = function(evt) { onError(evt) };
+			}
+
+			function onOpen(evt)
+			{
+				console.log("mjpeg-relay connected\n");
+			}
+
+			function onClose(evt)
+			{
+				console.log("mjpeg-relay disconnected\n");
+			}
+
+			function onMessage(evt)
+			{
+				var newFrame = new Image();
+				newFrame.style.position = "absolute";
+				newFrame.style.zIndex = -1;
+				newFrame.style.height = imageHeight;
+				newFrame.style.width = imageWidth;
+
+				frameCount++;
+
+				newFrame.onload = imageOnload;
+				newFrame.src = evt.data;
+
+				var stream = document.getElementById("mjpeg-relay");
+				stream.insertBefore(newFrame, stream.firstChild);
+			}
+
+			function onError(evt)
+			{
+				console.log('error: ' + evt.data + '\n');
+				websocket.close();
+			}
+		</script>
+
+		<div id="mjpeg-relay" style="width: 350px; height: 225px;"></div>
+	</body>
+</html>
