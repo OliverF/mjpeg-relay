@@ -97,7 +97,7 @@ class Broadcaster:
 	# Process data in frame buffer, extract frames when present
 	#
 	def extractFrames(self, frameBuffer):
-		if (frameBuffer.count(self.boundarySeparator) == 2):
+		if (frameBuffer.count(self.boundarySeparator) >= 2):
 			#calculate the start and end points of the frame
 			start = frameBuffer.find(self.boundarySeparator) + (len(self.boundarySeparator) - 1)
 			end = frameBuffer.find(self.boundarySeparator, start)
