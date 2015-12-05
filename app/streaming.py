@@ -36,14 +36,15 @@ class StreamingClient(object):
 
 	def stream(self):
 		while self.connected:
-			if (self.kill):
+			#this call blocks if there's no data in the queue, avoiding the need for busy-waiting
+			self.streamBuffer += self.streamQueue.get()
+
+			#check if kill or connected state has changed after being blocked
+			if (self.kill or not self.connected):
 				self.stop()
 				return
 
-			if (not self.streamQueue.empty()):
-				self.streamBuffer += self.streamQueue.get()
-
-			if (len(self.streamBuffer) > 0):
+			while (len(self.streamBuffer) > 0):
 				streamedTo = self.transmit(self.streamBuffer)
 				if (streamedTo and streamedTo >= 0):
 					self.streamBuffer = self.streamBuffer[streamedTo:]
