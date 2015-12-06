@@ -76,12 +76,10 @@ class HTTPRequestHandler:
 				clientsock.close()
 			elif ("/stream" in requestPath):
 				if (self.broadcast.broadcasting):
-					logging.info("Client connected, sending dummy header")
 					clientsock.sendall(self.dummyHeader.format(boundaryKey = self.broadcast.boundarySeparator))
 					client = TCPStreamingClient(clientsock)
 					client.start()
-					logging.info("Adding client to join waiting queue")
-					self.broadcast.joiningClients.put(client) #blocking, no timeout
+					self.broadcast.clients.append(client)
 				else:
 					clientsock.close()
 			elif ("/snapshot" in requestPath):

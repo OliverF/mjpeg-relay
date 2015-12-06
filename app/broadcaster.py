@@ -18,7 +18,6 @@ class Broadcaster:
 
 		self.clients = []
 		self.webSocketClients = []
-		self.joiningClients = Queue.Queue()
 		self.clientCount = 0
 
 		self.status = Status._instance
@@ -64,6 +63,7 @@ class Broadcaster:
 			return False
 
 		self.boundarySeparator = self.parseStreamHeader(self.sourceStream.headers['Content-Type'])
+		self.boundarySeparatorPrefix = "--"
 
 		if (not self.boundarySeparator):
 			logging.error("Unable to find boundary separator in the header returned from the stream source")
@@ -99,61 +99,53 @@ class Broadcaster:
 	def extractFrames(self, frameBuffer):
 		if (frameBuffer.count(self.boundarySeparator) >= 2):
 			#calculate the start and end points of the frame
-			start = frameBuffer.find(self.boundarySeparator) + (len(self.boundarySeparator) - 1)
-			end = frameBuffer.find(self.boundarySeparator, start)
+			start = frameBuffer.find(self.boundarySeparatorPrefix + self.boundarySeparator)
+			end = frameBuffer.find(self.boundarySeparatorPrefix + self.boundarySeparator, start + 1)
+
+			#extract full MJPEG frame
+			mjpegFrame = frameBuffer[start:end]
 
 			#extract frame data
-			imageStart = frameBuffer.find("\r\n\r\n", start) + len("\r\n\r\n")
-			image = frameBuffer[imageStart:end]
+			frameStart = frameBuffer.find("\r\n\r\n", start) + len("\r\n\r\n")
+			frame = frameBuffer[frameStart:end]
 
-			return (image, end)
+			#process for WebSocket clients
+			webSocketFrame = base64.b64encode(frame)
+
+			return (mjpegFrame, webSocketFrame, frame, end)
 		else:
-			return (None,0)
+			return (None, None, None, 0)
+
+	#
+	# Broadcast data to a list of StreamingClients
+	#
+	def broadcastToStreamingClients(self, clients, data):
+		for client in clients:
+			if (not client.connected):
+				clients.remove(client)
+				logging.info("Client left. Client count: {}".format(self.getClientCount()))
+			client.bufferStreamData(data)
 
 	#
 	# Broadcast data to all connected clients
 	#
 	def broadcast(self, data):
-		#broadcast to connected clients
-		for client in self.clients:
-			if (not client.connected):
-				self.clients.remove(client)
-				logging.info("Client left. Client count: {}".format(self.getClientCount()))
-			client.bufferStreamData(data)
-
 		self.lastFrameBuffer += data
-		frame, bufferProcessedTo = self.extractFrames(self.lastFrameBuffer)
-		if (frame):
-			#delete the frame now that it has been extracted, keep what remains in the buffer (faster, won't miss part of the next frame)
+
+		mjpegFrame, webSocketFrame, frame, bufferProcessedTo = self.extractFrames(self.lastFrameBuffer)
+
+		if (mjpegFrame and webSocketFrame and frame):
+			#delete the frame now that it has been extracted, keep what remains in the buffer
 			self.lastFrameBuffer = self.lastFrameBuffer[bufferProcessedTo:]
 
 			#save for /snapshot requests
 			self.lastFrame = frame
 
 			#serve to websocket clients
-			for client in self.webSocketClients:
-				if (not client.connected):
-					self.webSocketClients.remove(client)
-					logging.info("Client left. Client count: {}".format(self.getClientCount()))
-				client.bufferStreamData(base64.b64encode(frame))
+			self.broadcastToStreamingClients(self.webSocketClients, webSocketFrame)
 
-		if (not self.joiningClients.empty()):
-			pos = data.find(self.boundarySeparator)
-			if (pos != -1):
-				logging.info("Ready to join waiting clients to stream...")
-				#waiting clients can join the stream from this moment on
-				#first, send the data from the boundary key to the end of what we have in the buffer
-				catchup = data[pos:]
-
-				while (not self.joiningClients.empty()):
-					logging.info("Joining...")
-					try:
-						client = self.joiningClients.get()
-						client.bufferStreamData(catchup)
-						self.clients.append(client)
-						logging.info("Client has joined! Client count: {}".format(len(self.clients)))
-					except Exception, e:
-						logging.info("Failed to join client to stream: {}".format(e))
+			#serve to standard clients
+			self.broadcastToStreamingClients(self.clients, mjpegFrame)
 
 	#
 	# Thread to handle reading the source of the stream and rebroadcasting
@@ -172,12 +164,12 @@ class Broadcaster:
 			except Exception, e:
 				logging.error("Lost connection to the stream source: {}".format(e))
 			finally:
-				#flush the frame buffer to avoid conflicting with future image data
+				#flush the frame buffer to avoid conflicting with future frame data
 				self.lastFrameBuffer = ""
 				self.connected = False
 				while (not self.connected):
 					if (self.feedLostFrame):
-						data = "--" + self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
+						data = self.boundarySeparatorPrefix + self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
 						self.broadcast(data)
 					time.sleep(5)
 					self.connectToStream()
