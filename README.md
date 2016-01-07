@@ -1,7 +1,7 @@
 mjpeg-relay
 ===========
 
-mjpeg-relay is a simple Python script which accepts input from an existing MJPEG stream, and relays it to any number of clients. This is inteded for a scenario where the original MJPEG stream is hosted on a low-bandwidth internet connection (such as a home connection) or from a low-resource device (such as a Raspberry Pi or IP camera), and you have a server from which you wish to relay the stream to multiple clients without placing extra demand on the original stream.
+mjpeg-relay is a simple Python script which accepts input from an existing MJPEG stream, and relays it to any number of clients. This is intended for a scenario where the original MJPEG stream is hosted on a low-bandwidth internet connection (such as a home connection) or from a low-resource device (such as a Raspberry Pi or IP camera), and you have a server from which you wish to relay the stream to multiple clients without placing extra demand on the original stream.
 
 The script is designed to be simple to use with minimal configuration. All video parameters are defined by the source stream, ensuring mjpeg-relay is as transparent as possible. Rather than creating its own MJPEG stream, mjpeg-relay simply re-streams the original MJPEG stream directly. This is a faster and more transparent approach.
 
@@ -52,6 +52,6 @@ Once it is running, you can access the following URLs:
 Here is the same example done with docker:
 
 ``` shell
-docker build -t replay .
-docker run -d -p 54017:54321 replay "http://192.0.2.1:1234/?action=stream"
+docker build -t relay .
+docker run -d -p 54017:54321 relay "http://192.0.2.1:1234/?action=stream"
 ```
