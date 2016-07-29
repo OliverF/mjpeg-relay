@@ -34,8 +34,8 @@ def quit():
 if __name__ == '__main__':
 	op = OptionParser(usage = "%prog [options] stream-source-url")
 
-	op.add_option("-p", "--port", action="store", default = 54321, dest="port", help = "Port to serve the MJPEG stream on")
-	op.add_option("-w", "--ws-port", action="store", default = 54322, dest="wsport", help = "Port to serve the MJPEG stream on via WebSockets")
+	op.add_option("-p", "--port", action="store", default = 54321, dest="port", help = "Port to serve the MJPEG stream on (default: 54321, 0 to disable)")
+	op.add_option("-w", "--ws-port", action="store", default = 0, dest="wsport", help = "Port to serve the MJPEG stream on via WebSockets (default: disabled)")
 	op.add_option("-q", "--quiet", action="store_true", default = False, dest="quiet", help = "Silence non-essential output")
 
 	(options, args) = op.parse_args()
@@ -63,13 +63,15 @@ if __name__ == '__main__':
 	broadcaster = Broadcaster(args[0])
 	broadcaster.start()
 
-	requestHandler = HTTPRequestHandler(options.port)
-	requestHandler.start()
-
-	s = SimpleWebSocketServer('', options.wsport, WebSocketStreamingClient)
-	webSocketHandlerThread = threading.Thread(target=s.serveforever)
-	webSocketHandlerThread.daemon = True
-	webSocketHandlerThread.start()
+	if options.port>0:
+		requestHandler = HTTPRequestHandler(options.port)
+		requestHandler.start()
+   
+	if options.wsport>0:
+		s = SimpleWebSocketServer('', options.wsport, WebSocketStreamingClient)
+		webSocketHandlerThread = threading.Thread(target=s.serveforever)
+		webSocketHandlerThread.daemon = True
+		webSocketHandlerThread.start()
 
 	try:
 		while raw_input() != "quit":
