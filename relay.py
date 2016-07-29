@@ -24,8 +24,10 @@ except ImportError, e:
 # Close threads gracefully
 #
 def quit():
-	broadcast.kill = True
-	requestHandler.kill = True
+	if not broadcast is None:
+		broadcast.kill = True
+	if not requestHandler is None:
+		requestHandler.kill = True
 	quitsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	quitsock.connect(("127.0.0.1", options.port))
 	quitsock.close()
@@ -54,6 +56,9 @@ if __name__ == '__main__':
 		logging.error("Port must be numeric")
 		op.print_help()
 		sys.exit(1)
+		
+	broadcast = None
+	requestHandler = None
 
 	Status()
 	statusThread = threading.Thread(target=Status._instance.run)
