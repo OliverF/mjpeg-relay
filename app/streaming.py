@@ -7,7 +7,7 @@ from broadcaster import Broadcaster
 try:
 	from SimpleWebSocketServer.SimpleWebSocketServer import WebSocket
 except ImportError, e:
-	print "Failed to import dependency: {}".format(e)
+	print "Failed to import dependency: {0}".format(e)
 	print "Please ensure the SimpleWebSocketServer submodule has been correctly installed: git submodule update --init"
 	sys.exit(1)
 

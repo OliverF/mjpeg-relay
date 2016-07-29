@@ -38,10 +38,10 @@ class Broadcaster:
 			feedLostFile.close()
 
 			self.feedLostFrame = 	"Content-Type: image/jpeg\r\n"\
-									"Content-Length: {}\r\n\r\n"\
-									"{}".format(len(feedLostImage), feedLostImage)
+									"Content-Length: {0}\r\n\r\n"\
+									"{1}".format(len(feedLostImage), feedLostImage)
 		except IOError, e:
-			logging.warning("Unable to read feedlost.jpeg: {}".format(e))
+			logging.warning("Unable to read feedlost.jpeg: {0}".format(e))
 			self.feedLostFrame = False
 
 		Broadcaster._instance = self
@@ -49,7 +49,7 @@ class Broadcaster:
 	def start(self):
 		if (self.connectToStream()):
 			self.broadcasting = True
-			logging.info("Connected to stream source, boundary separator: {}".format(self.boundarySeparator))
+			logging.info("Connected to stream source, boundary separator: {0}".format(self.boundarySeparator))
 			self.broadcastThread.start()
 
 	#
@@ -59,7 +59,7 @@ class Broadcaster:
 		try:
 			self.sourceStream = requests.get(self.url, stream = True, timeout = 10)
 		except Exception, e:
-			logging.error("Error: Unable to connect to stream source at {}: {}".format(self.url, e))
+			logging.error("Error: Unable to connect to stream source at {0}: {1}".format(self.url, e))
 			return False
 
 		self.boundarySeparator = self.parseStreamHeader(self.sourceStream.headers['Content-Type'])
@@ -123,7 +123,7 @@ class Broadcaster:
 		for client in clients:
 			if (not client.connected):
 				clients.remove(client)
-				logging.info("Client left. Client count: {}".format(self.getClientCount()))
+				logging.info("Client left. Client count: {0}".format(self.getClientCount()))
 			client.bufferStreamData(data)
 
 	#
@@ -162,7 +162,7 @@ class Broadcaster:
 					self.status.addToBytesIn(len(data))
 					self.status.addToBytesOut(len(data)*self.getClientCount())
 			except Exception, e:
-				logging.error("Lost connection to the stream source: {}".format(e))
+				logging.error("Lost connection to the stream source: {0}".format(e))
 			finally:
 				#flush the frame buffer to avoid conflicting with future frame data
 				self.lastFrameBuffer = ""

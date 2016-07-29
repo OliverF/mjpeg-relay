@@ -62,7 +62,7 @@ class HTTPRequestHandler:
 
 				requestPath = match.group(1)
 			except Exception, e:
-				logging.info("Client sent unexpected request: {}".format(buff))
+				logging.info("Client sent unexpected request: {0}".format(buff))
 				return
 
 			#explicitly deal with individual requests. Verbose, but more secure
@@ -85,7 +85,7 @@ class HTTPRequestHandler:
 			elif ("/snapshot" in requestPath):
 				clientsock.sendall('HTTP/1.0 200 OK\r\n')
 				clientsock.sendall('Content-Type: image/jpeg\r\n')
-				clientsock.sendall('Content-Length: {}\r\n\r\n'.format(len(self.broadcast.lastFrame)))
+				clientsock.sendall('Content-Length: {0}\r\n\r\n'.format(len(self.broadcast.lastFrame)))
 				clientsock.sendall(self.broadcast.lastFrame)
 				clientsock.close()
 			else:
