@@ -63,7 +63,6 @@ class Broadcaster:
 			return False
 
 		self.boundarySeparator = self.parseStreamHeader(self.sourceStream.headers['Content-Type'])
-		self.boundarySeparatorPrefix = "--"
 
 		if (not self.boundarySeparator):
 			logging.error("Unable to find boundary separator in the header returned from the stream source")
@@ -81,7 +80,10 @@ class Broadcaster:
 
 		match = re.search(r'boundary=(.*)', header, re.IGNORECASE)
 		try:
-			return match.group(1)
+			boundary = match.group(1)
+			if not boundary.startswith("--"):
+				boundary = "--" + boundary
+			return boundary
 		except:
 			logging.error("Unexpected header returned from stream source: unable to parse boundary")
 			logging.error(header)
@@ -99,8 +101,8 @@ class Broadcaster:
 	def extractFrames(self, frameBuffer):
 		if (frameBuffer.count(self.boundarySeparator) >= 2):
 			#calculate the start and end points of the frame
-			start = frameBuffer.find(self.boundarySeparatorPrefix + self.boundarySeparator)
-			end = frameBuffer.find(self.boundarySeparatorPrefix + self.boundarySeparator, start + 1)
+			start = frameBuffer.find(self.boundarySeparator)
+			end = frameBuffer.find(self.boundarySeparator, start + 1)
 
 			#extract full MJPEG frame
 			mjpegFrame = frameBuffer[start:end]
@@ -169,7 +171,7 @@ class Broadcaster:
 				self.connected = False
 				while (not self.connected):
 					if (self.feedLostFrame):
-						data = self.boundarySeparatorPrefix + self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
+						data = self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
 						self.broadcast(data)
 					time.sleep(5)
 					self.connectToStream()
