@@ -29,12 +29,10 @@ class Broadcaster:
 	_instance = None
 
 	def __init__(self, url):
-		self.headerType = "multipart/x-mixed-replace"
 		self.url = url
 
 		self.clients = []
 		self.webSocketClients = []
-		self.clientCount = 0
 
 		self.status = Status._instance
 
