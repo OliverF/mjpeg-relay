@@ -101,7 +101,7 @@ class HTTPRequestHandler:
 		while True:
 			clientsock, addr = self.acceptsock.accept()
 
-			if (self.kill == True):
+			if self.kill:
 				clientsock.close()
 				return
 			handlethread = threading.Thread(target = self.handleRequest, args = (clientsock,))

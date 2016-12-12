@@ -170,7 +170,7 @@ class Broadcaster:
 		while True:
 			try:
 				for data in self.sourceStream.iter_content(1024):
-					if (self.kill == True):
+					if self.kill:
 						for client in self.clients + self.webSocketClients:
 							client.kill = True
 						return
