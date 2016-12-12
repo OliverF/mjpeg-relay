@@ -7,6 +7,22 @@ import time
 import base64
 from status import Status
 
+class HTTPBasicThenDigestAuth(requests.auth.HTTPDigestAuth):
+	"""Try HTTPBasicAuth, then HTTPDigestAuth."""
+
+        def __init__(self):
+                super(HTTPBasicThenDigestAuth, self).__init__(None, None)
+
+        def __call__(self, r):
+                # Extract auth from URL
+                self.username, self.password = requests.utils.get_auth_from_url(r.url)
+
+                # Prepare basic auth
+                r = requests.auth.HTTPBasicAuth(self.username, self.password).__call__(r)
+
+                # Let HTTPDigestAuth handle the 401
+                return super(HTTPBasicThenDigestAuth, self).__call__(r)
+
 class Broadcaster:
 	"""Handles relaying the source MJPEG stream to connected clients"""
 
@@ -57,7 +73,7 @@ class Broadcaster:
 	#
 	def connectToStream(self):
 		try:
-			self.sourceStream = requests.get(self.url, stream = True, timeout = 10)
+			self.sourceStream = requests.get(self.url, stream = True, timeout = 10, auth = HTTPBasicThenDigestAuth())
 		except Exception, e:
 			logging.error("Error: Unable to connect to stream source at {}: {}".format(self.url, e))
 			return False
