@@ -24,7 +24,7 @@ except ImportError, e:
 # Close threads gracefully
 #
 def quit():
-	broadcast.kill = True
+	broadcaster.kill = True
 	requestHandler.kill = True
 	quitsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	quitsock.connect(("127.0.0.1", options.port))
