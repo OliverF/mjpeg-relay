@@ -19,7 +19,6 @@ class StreamingClient(object):
 		self.streamThread = threading.Thread(target = self.stream)
 		self.streamThread.daemon = True
 		self.connected = True
-		self.kill = False
 		super(StreamingClient, self).__init__()
 
 	def start(self):
@@ -40,9 +39,8 @@ class StreamingClient(object):
 			#this call blocks if there's no data in the queue, avoiding the need for busy-waiting
 			self.streamBuffer += self.streamQueue.get()
 
-			#check if kill or connected state has changed after being blocked
-			if (self.kill or not self.connected):
-				self.stop()
+			#check if connected state has changed after being blocked
+			if (not self.connected):
 				return
 
 			while (len(self.streamBuffer) > 0):
