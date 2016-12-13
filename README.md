@@ -16,11 +16,12 @@ The script is designed to be simple to use with minimal configuration. All video
 2. Ensure submodules are correctly installed by running `git submodule update --init`
 
 # Usage
-`relay.py [-p <relay port>] [-w <WebSocket port>] [-q] stream-source-url`
+`relay.py [-p <relay port>] [-w <WebSocket port>] [-q] [-d] stream-source-url`
 
 - **-p \<relay port\>**: Port that the stream will be relayed on (default is 54321)
 - **-w \<WebSocket port\>**: Port that the stream will be relayed on via WebSockets (default is 54322)
 - **-q**: Silence non-essential output
+- **-d**: Turn debugging on
 - **stream-source-url**: URL of the existing MJPEG stream. If the stream is protected with HTTP authentication, supply the credentials via the URL like so: `http://user:password@ip:port/path/to/stream/`
 
 Once it is running, you can access the following URLs:

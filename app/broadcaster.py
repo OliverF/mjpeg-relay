@@ -7,18 +7,32 @@ import time
 import base64
 from status import Status
 
+class HTTPBasicThenDigestAuth(requests.auth.HTTPDigestAuth):
+	"""Try HTTPBasicAuth, then HTTPDigestAuth."""
+
+        def __init__(self):
+                super(HTTPBasicThenDigestAuth, self).__init__(None, None)
+
+        def __call__(self, r):
+                # Extract auth from URL
+                self.username, self.password = requests.utils.get_auth_from_url(r.url)
+
+                # Prepare basic auth
+                r = requests.auth.HTTPBasicAuth(self.username, self.password).__call__(r)
+
+                # Let HTTPDigestAuth handle the 401
+                return super(HTTPBasicThenDigestAuth, self).__call__(r)
+
 class Broadcaster:
 	"""Handles relaying the source MJPEG stream to connected clients"""
 
 	_instance = None
 
 	def __init__(self, url):
-		self.headerType = "multipart/x-mixed-replace"
 		self.url = url
 
 		self.clients = []
 		self.webSocketClients = []
-		self.clientCount = 0
 
 		self.status = Status._instance
 
@@ -57,13 +71,12 @@ class Broadcaster:
 	#
 	def connectToStream(self):
 		try:
-			self.sourceStream = requests.get(self.url, stream = True, timeout = 10)
+			self.sourceStream = requests.get(self.url, stream = True, timeout = 10, auth = HTTPBasicThenDigestAuth())
 		except Exception, e:
 			logging.error("Error: Unable to connect to stream source at {}: {}".format(self.url, e))
 			return False
 
 		self.boundarySeparator = self.parseStreamHeader(self.sourceStream.headers['Content-Type'])
-		self.boundarySeparatorPrefix = "--"
 
 		if (not self.boundarySeparator):
 			logging.error("Unable to find boundary separator in the header returned from the stream source")
@@ -81,7 +94,10 @@ class Broadcaster:
 
 		match = re.search(r'boundary=(.*)', header, re.IGNORECASE)
 		try:
-			return match.group(1)
+			boundary = match.group(1)
+			if not boundary.startswith("--"):
+				boundary = "--" + boundary
+			return boundary
 		except:
 			logging.error("Unexpected header returned from stream source: unable to parse boundary")
 			logging.error(header)
@@ -99,8 +115,8 @@ class Broadcaster:
 	def extractFrames(self, frameBuffer):
 		if (frameBuffer.count(self.boundarySeparator) >= 2):
 			#calculate the start and end points of the frame
-			start = frameBuffer.find(self.boundarySeparatorPrefix + self.boundarySeparator)
-			end = frameBuffer.find(self.boundarySeparatorPrefix + self.boundarySeparator, start + 1)
+			start = frameBuffer.find(self.boundarySeparator)
+			end = frameBuffer.find(self.boundarySeparator, start + 1)
 
 			#extract full MJPEG frame
 			mjpegFrame = frameBuffer[start:end]
@@ -154,7 +170,7 @@ class Broadcaster:
 		while True:
 			try:
 				for data in self.sourceStream.iter_content(1024):
-					if (self.kill == True):
+					if self.kill:
 						for client in self.clients + self.webSocketClients:
 							client.kill = True
 						return
@@ -169,7 +185,7 @@ class Broadcaster:
 				self.connected = False
 				while (not self.connected):
 					if (self.feedLostFrame):
-						data = self.boundarySeparatorPrefix + self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
+						data = self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
 						self.broadcast(data)
 					time.sleep(5)
 					self.connectToStream()

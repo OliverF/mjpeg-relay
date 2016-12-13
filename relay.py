@@ -24,7 +24,7 @@ except ImportError, e:
 # Close threads gracefully
 #
 def quit():
-	broadcast.kill = True
+	broadcaster.kill = True
 	requestHandler.kill = True
 	quitsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	quitsock.connect(("127.0.0.1", options.port))
@@ -37,6 +37,7 @@ if __name__ == '__main__':
 	op.add_option("-p", "--port", action="store", default = 54321, dest="port", help = "Port to serve the MJPEG stream on")
 	op.add_option("-w", "--ws-port", action="store", default = 54322, dest="wsport", help = "Port to serve the MJPEG stream on via WebSockets")
 	op.add_option("-q", "--quiet", action="store_true", default = False, dest="quiet", help = "Silence non-essential output")
+	op.add_option("-d", "--debug", action="store_true", default = False, dest="debug", help = "Turn debugging on")
 
 	(options, args) = op.parse_args()
 
@@ -46,6 +47,12 @@ if __name__ == '__main__':
 
 	logging.basicConfig(level=logging.WARNING if options.quiet else logging.INFO, format="%(message)s")
 	logging.getLogger("requests").setLevel(logging.WARNING if options.quiet else logging.INFO)
+
+	if options.debug:
+		from httplib import HTTPConnection
+		HTTPConnection.debuglevel = 1
+		logging.getLogger().setLevel(logging.DEBUG)
+		logging.getLogger("requests").setLevel(logging.DEBUG)
 
 	try:
 		options.port = int(options.port)
