@@ -36,7 +36,6 @@ class Broadcaster:
 
 		self.status = Status._instance
 
-		self.kill = False
 		self.broadcastThread = threading.Thread(target = self.streamFromSource)
 		self.broadcastThread.daemon = True
 
@@ -65,6 +64,10 @@ class Broadcaster:
 			self.broadcasting = True
 			logging.info("Connected to stream source, boundary separator: {}".format(self.boundarySeparator))
 			self.broadcastThread.start()
+
+	def stop(self):
+		for clients in self.clients + self.webSocketClients:
+			client.stop()
 
 	#
 	# Connects to the stream source
@@ -170,10 +173,6 @@ class Broadcaster:
 		while True:
 			try:
 				for data in self.sourceStream.iter_content(1024):
-					if self.kill:
-						for client in self.clients + self.webSocketClients:
-							client.kill = True
-						return
 					self.broadcast(data)
 					self.status.addToBytesIn(len(data))
 					self.status.addToBytesOut(len(data)*self.getClientCount())

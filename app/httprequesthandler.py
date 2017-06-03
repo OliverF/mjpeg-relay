@@ -23,18 +23,19 @@ class HTTPRequestHandler:
 		self.acceptsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.acceptsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.acceptsock.bind(("0.0.0.0", port))
-		self.acceptsock.listen(10)
 
 		self.broadcast = Broadcaster._instance
 		self.status = Status._instance
-
-		self.kill = False
 
 		self.acceptThread = threading.Thread(target = self.acceptClients)
 		self.acceptThread.daemon = True
 
 	def start(self):
+		self.acceptsock.listen(10)
 		self.acceptThread.start()
+
+	def stop(self):
+		self.acceptsock.close()
 
 	#
 	# Thread to process client requests
@@ -100,9 +101,5 @@ class HTTPRequestHandler:
 	def acceptClients(self):
 		while True:
 			clientsock, addr = self.acceptsock.accept()
-
-			if self.kill:
-				clientsock.close()
-				return
 			handlethread = threading.Thread(target = self.handleRequest, args = (clientsock,))
 			handlethread.start()

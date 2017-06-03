@@ -24,11 +24,9 @@ except ImportError, e:
 # Close threads gracefully
 #
 def quit():
-	broadcaster.kill = True
-	requestHandler.kill = True
-	quitsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	quitsock.connect(("127.0.0.1", options.port))
-	quitsock.close()
+	broadcaster.stop()
+	requestHandler.stop()
+	webSocketServer.close()
 	sys.exit(1)
 
 if __name__ == '__main__':
@@ -73,8 +71,8 @@ if __name__ == '__main__':
 	requestHandler = HTTPRequestHandler(options.port)
 	requestHandler.start()
 
-	s = SimpleWebSocketServer('', options.wsport, WebSocketStreamingClient)
-	webSocketHandlerThread = threading.Thread(target=s.serveforever)
+	webSocketServer = SimpleWebSocketServer('', options.wsport, WebSocketStreamingClient)
+	webSocketHandlerThread = threading.Thread(target = webSocketServer.serveforever)
 	webSocketHandlerThread.daemon = True
 	webSocketHandlerThread.start()
 
