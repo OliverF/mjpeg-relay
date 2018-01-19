@@ -172,7 +172,7 @@ class Broadcaster:
 	def streamFromSource(self):
 		while True:
 			try:
-				for data in self.sourceStream.iter_content(1024):
+				for data in self.sourceStream.iter_content(None):
 					self.broadcast(data)
 					self.status.addToBytesIn(len(data))
 					self.status.addToBytesOut(len(data)*self.getClientCount())
