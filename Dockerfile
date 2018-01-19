@@ -1,5 +1,11 @@
-from python:2.7-onbuild
+FROM alpine:3.7
 
-expose 54321
+RUN apk add --no-cache python2 py2-pip
 
-entrypoint ["python", "relay.py"]
+COPY . /relay/
+RUN pip install -r /relay/requirements.txt
+
+WORKDIR /relay
+
+EXPOSE 54321
+ENTRYPOINT ["python", "relay.py"]
