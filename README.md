@@ -54,5 +54,5 @@ Here is the same example done with docker:
 
 ``` shell
 docker build -t relay .
-docker run -d -p 54017:54321 relay "http://192.0.2.1:1234/?action=stream"
+docker run -i -d -p 54017:54321 relay "http://192.0.2.1:1234/?action=stream"
 ```
