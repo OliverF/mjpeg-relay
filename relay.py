@@ -1,3 +1,5 @@
+#!/usr/bin/env python2.7
+
 import sys
 import socket
 import threading
@@ -9,6 +11,7 @@ import re
 import logging
 import requests
 import base64
+import signal
 from app.status import Status
 from app.broadcaster import Broadcaster
 from app.httprequesthandler import HTTPRequestHandler
@@ -30,6 +33,10 @@ def quit():
 	quitsock.connect(("127.0.0.1", options.port))
 	quitsock.close()
 	sys.exit(1)
+
+def handle_signal(sig, frame):
+	logging.info("Received signal, shutting down..")
+	quit()
 
 if __name__ == '__main__':
 	op = OptionParser(usage = "%prog [options] stream-source-url")
@@ -78,15 +85,11 @@ if __name__ == '__main__':
 	webSocketHandlerThread.daemon = True
 	webSocketHandlerThread.start()
 
-	try:
-		while raw_input() != "quit":
-			continue
-		quit()
-	except KeyboardInterrupt:
-		quit()
-	except EOFError:
-		#this exception is raised when ctrl-c is used to close the application on Windows, appears to be thrown twice?
-		try:
-			quit()
-		except KeyboardInterrupt:
-			os._exit(0)
+	# Start signal handlers
+	signal.signal(signal.SIGHUP, handle_signal)
+	signal.signal(signal.SIGINT, handle_signal)
+	signal.signal(signal.SIGQUIT, handle_signal)
+	signal.signal(signal.SIGTERM, handle_signal)
+
+	while True:
+		signal.pause()
