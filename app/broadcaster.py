@@ -220,6 +220,8 @@ class Broadcaster:
 						self.broadcast(data)
 						self.connectToStream()
 						self.idle = False
+					else:
+						time.sleep(0.5)
 
 				while (not self.connected):
 					if (self.feedLostFrame):
