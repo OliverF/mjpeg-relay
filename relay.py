@@ -36,6 +36,7 @@ if __name__ == '__main__':
 
 	op.add_option("-p", "--port", action="store", default = 54321, dest="port", help = "Port to serve the MJPEG stream on")
 	op.add_option("-w", "--ws-port", action="store", default = 54322, dest="wsport", help = "Port to serve the MJPEG stream on via WebSockets")
+	op.add_option(	"-T", "--stream-timeout", action="store", default = -1, dest="stream_timeout", help = "Source stream timeout (seconds)")
 	op.add_option("-q", "--quiet", action="store_true", default = False, dest="quiet", help = "Silence non-essential output")
 	op.add_option("-d", "--debug", action="store_true", default = False, dest="debug", help = "Turn debugging on")
 
@@ -62,12 +63,19 @@ if __name__ == '__main__':
 		op.print_help()
 		sys.exit(1)
 
+	try:
+		options.stream_timeout = int(options.stream_timeout)
+	except ValueError:
+		logging.error("Stream timeout must be numeric")
+		op.print_help()
+		sys.exit(1)
+
 	Status()
 	statusThread = threading.Thread(target=Status._instance.run)
 	statusThread.daemon = True
 	statusThread.start()
 
-	broadcaster = Broadcaster(args[0])
+	broadcaster = Broadcaster(args[0], options.stream_timeout)
 	broadcaster.start()
 
 	requestHandler = HTTPRequestHandler(options.port)

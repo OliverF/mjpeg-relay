@@ -4,6 +4,7 @@ import logging
 import requests
 import re
 import time
+import datetime
 import base64
 from status import Status
 
@@ -28,11 +29,12 @@ class Broadcaster:
 
 	_instance = None
 
-	def __init__(self, url):
+	def __init__(self, url, streamTimeout):
 		self.url = url
 
 		self.clients = []
 		self.webSocketClients = []
+		self.lastClient = datetime.datetime.now()
 
 		self.status = Status._instance
 
@@ -45,6 +47,8 @@ class Broadcaster:
 
 		self.connected = False
 		self.broadcasting = False
+		self.idle = False
+		self.streamTimeout = streamTimeout
 
 		try:
 			feedLostFile = open("app/resources/feedlost.jpeg", "rb") #read-only, binary
@@ -57,6 +61,18 @@ class Broadcaster:
 		except IOError, e:
 			logging.warning("Unable to read feedlost.jpeg: {}".format(e))
 			self.feedLostFrame = False
+
+		try:
+			idleFile = open("app/resources/connecting.jpeg", "rb") #read-only, binary
+			idleImage = idleFile.read()
+			idleFile.close()
+
+			self.idleFrame = 		"Content-Type: image/jpeg\r\n"\
+									"Content-Length: {}\r\n\r\n"\
+									"{}".format(len(idleImage), idleImage)
+		except IOError, e:
+			logging.warning("Unable to read connecting.jpeg: {}".format(e))
+			self.idleFrame = False
 
 		Broadcaster._instance = self
 
@@ -154,6 +170,9 @@ class Broadcaster:
 			#delete the frame now that it has been extracted, keep what remains in the buffer
 			self.lastFrameBuffer = self.lastFrameBuffer[bufferProcessedTo:]
 
+			if self.getClientCount() != 0:
+				self.lastClient = datetime.datetime.now()
+
 			#save for /snapshot requests
 			self.lastFrame = frame
 
@@ -177,12 +196,33 @@ class Broadcaster:
 					self.broadcast(data)
 					self.status.addToBytesIn(len(data))
 					self.status.addToBytesOut(len(data)*self.getClientCount())
+
+					time_delta = datetime.datetime.now() - self.lastClient
+					if (self.getClientCount() == 0 and time_delta.total_seconds() >= self.streamTimeout \
+						and self.streamTimeout != -1):
+						logging.info("Timeout, disconnecting from source..")
+						self.idle = True
+						self.sourceStream.close()
+						break
+
 			except Exception, e:
 				logging.error("Lost connection to the stream source: {}".format(e))
 			finally:
 				#flush the frame buffer to avoid conflicting with future frame data
 				self.lastFrameBuffer = ""
 				self.connected = False
+
+				while (self.idle):
+					if (self.getClientCount() != 0):
+						logging.info("New client, connecting to source..")
+						data = self.boundarySeparator + "\r\n" + self.idleFrame + "\r\n"
+						self.lastClient = datetime.datetime.now()
+						self.broadcast(data)
+						self.connectToStream()
+						self.idle = False
+					else:
+						time.sleep(0.5)
+
 				while (not self.connected):
 					if (self.feedLostFrame):
 						data = self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
