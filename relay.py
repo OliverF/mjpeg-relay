@@ -36,6 +36,7 @@ if __name__ == '__main__':
 
 	op.add_option("-p", "--port", action="store", default = 54321, dest="port", help = "Port to serve the MJPEG stream on")
 	op.add_option("-w", "--ws-port", action="store", default = 54322, dest="wsport", help = "Port to serve the MJPEG stream on via WebSockets")
+	op.add_option("-f", "--framerate", action="store", default = -1, dest="framerate", help = "Maximum framerate to stream at")
 	op.add_option("-q", "--quiet", action="store_true", default = False, dest="quiet", help = "Silence non-essential output")
 	op.add_option("-d", "--debug", action="store_true", default = False, dest="debug", help = "Turn debugging on")
 
@@ -62,12 +63,19 @@ if __name__ == '__main__':
 		op.print_help()
 		sys.exit(1)
 
+	try:
+		options.framerate = int(options.framerate)
+	except ValueError:
+		logging.error("Framerate must be numeric")
+		op.print_help()
+		sys.exit(1)
+
 	Status()
 	statusThread = threading.Thread(target=Status._instance.run)
 	statusThread.daemon = True
 	statusThread.start()
 
-	broadcaster = Broadcaster(args[0])
+	broadcaster = Broadcaster(args[0], options.framerate)
 	broadcaster.start()
 
 	requestHandler = HTTPRequestHandler(options.port)

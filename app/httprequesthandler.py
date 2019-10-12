@@ -68,7 +68,7 @@ class HTTPRequestHandler:
 			#explicitly deal with individual requests. Verbose, but more secure
 			if ("/status" in requestPath):
 				clientsock.sendall('HTTP/1.0 200 OK\r\nContentType: text/html\r\n\r\n')
-				clientsock.sendall(self.statusHTML.format(clientcount = self.broadcast.getClientCount(), bwin = float(self.status.bandwidthIn*8)/1000000, bwout = float(self.status.bandwidthOut*8)/1000000))
+				clientsock.sendall(self.statusHTML.format(clientcount = self.broadcast.getClientCount(), bwin = float(self.status.bandwidthIn*8)/1000000, bwout = float(self.status.bandwidthOut*8)/1000000, frin=float(self.status.framerateIn), frout=float(self.status.framerateOut)))
 				clientsock.close()
 			elif ("/style.css" in requestPath):
 				clientsock.sendall('HTTP/1.0 200 OK\r\nContentType: text/html\r\n\r\n')

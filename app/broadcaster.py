@@ -4,6 +4,7 @@ import logging
 import requests
 import re
 import time
+import datetime
 import base64
 from status import Status
 
@@ -28,8 +29,11 @@ class Broadcaster:
 
 	_instance = None
 
-	def __init__(self, url):
+	def __init__(self, url, framerate):
 		self.url = url
+		self.framerate = framerate
+
+		logging.info("Desired max. framerate: {}".format(self.framerate));
 
 		self.clients = []
 		self.webSocketClients = []
@@ -41,6 +45,7 @@ class Broadcaster:
 		self.broadcastThread.daemon = True
 
 		self.lastFrame = ""
+		self.lastFrameTime = datetime.datetime.now()
 		self.lastFrameBuffer = ""
 
 		self.connected = False
@@ -154,14 +159,24 @@ class Broadcaster:
 			#delete the frame now that it has been extracted, keep what remains in the buffer
 			self.lastFrameBuffer = self.lastFrameBuffer[bufferProcessedTo:]
 
-			#save for /snapshot requests
-			self.lastFrame = frame
+			self.status.incFramesIn()
+			#only transmit frames often enough to match framerate
+			time_delta = datetime.datetime.now() - self.lastFrameTime
+			if (self.framerate == -1 or time_delta.total_seconds() >= 1.0 / float(self.framerate)):
+				#save for /snapshot requests
+				self.lastFrame = frame
 
-			#serve to websocket clients
-			self.broadcastToStreamingClients(self.webSocketClients, webSocketFrame)
+				self.lastFrameTime = datetime.datetime.now()
 
-			#serve to standard clients
-			self.broadcastToStreamingClients(self.clients, mjpegFrame)
+				#serve to websocket clients
+				self.broadcastToStreamingClients(self.webSocketClients, webSocketFrame)
+				self.status.addToBytesOut(len(webSocketFrame)*len(self.webSocketClients))
+
+				#serve to standard clients
+				self.broadcastToStreamingClients(self.clients, mjpegFrame)
+				self.status.addToBytesOut(len(mjpegFrame)*len(self.clients))
+
+				self.status.incFramesOut()
 
 	#
 	# Thread to handle reading the source of the stream and rebroadcasting
@@ -176,7 +191,6 @@ class Broadcaster:
 						return
 					self.broadcast(data)
 					self.status.addToBytesIn(len(data))
-					self.status.addToBytesOut(len(data)*self.getClientCount())
 			except Exception, e:
 				logging.error("Lost connection to the stream source: {}".format(e))
 			finally:
