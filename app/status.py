@@ -21,10 +21,10 @@ class Status:
 
 	def run(self):
 		while True:
-			self.bandwidthOut = self.bytesOut
-			self.bandwidthIn = self.bytesIn
+			self.bandwidthOut = self.bytesOut / 5
+			self.bandwidthIn = self.bytesIn / 5
 
 			self.bytesIn = 0
 			self.bytesOut = 0
 
-			time.sleep(1)
+			time.sleep(5)
