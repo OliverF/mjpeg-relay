@@ -1,0 +1,16 @@
+[Unit]
+Description=MJPEG relay
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=10s
+ExecStart=/home/camera/mjpeg-relay/relay.py
+WorkingDirectory=/home/camera/mjpeg-relay
+User=camera
+Group=camera
+
+[Install]
+WantedBy=multi-user.target
+
