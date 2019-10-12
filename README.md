@@ -20,6 +20,7 @@ The script is designed to be simple to use with minimal configuration. All video
 
 - **-p \<relay port\>**: Port that the stream will be relayed on (default is 54321)
 - **-w \<WebSocket port\>**: Port that the stream will be relayed on via WebSockets (default is 54322)
+- **-T \<timeout\>**: Idle disconnect timeout after which mjpeg-streamer will disconnect from the source (default: no timeout)
 - **-q**: Silence non-essential output
 - **-d**: Turn debugging on
 - **stream-source-url**: URL of the existing MJPEG stream. If the stream is protected with HTTP authentication, supply the credentials via the URL like so: `http://user:password@ip:port/path/to/stream/`
