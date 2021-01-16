@@ -1,21 +1,21 @@
-import sys
-import Queue
+import queue
 import socket
 import threading
-from broadcaster import Broadcaster
+from .broadcaster import Broadcaster
 
-try:
-	from SimpleWebSocketServer.SimpleWebSocketServer import WebSocket
-except ImportError, e:
-	print "Failed to import dependency: {}".format(e)
-	print "Please ensure the SimpleWebSocketServer submodule has been correctly installed: git submodule update --init"
-	sys.exit(1)
+# try:
+# 	from .SimpleWebSocketServer.SimpleWebSocketServer import WebSocket
+# except ImportError as e:
+# 	print(("Failed to import dependency: {}".format(e)))
+# 	print("Please ensure the SimpleWebSocketServer submodule has been correctly installed: git submodule update --init")
+# 	sys.exit(1)
+from SimpleWebSocketServer import WebSocket
 
 class StreamingClient(object):
 
 	def __init__(self):
-		self.streamBuffer = ""
-		self.streamQueue = Queue.Queue()
+		self.streamBuffer: bytes = b""
+		self.streamQueue = queue.Queue()
 		self.streamThread = threading.Thread(target = self.stream)
 		self.streamThread.daemon = True
 		self.connected = True
@@ -50,7 +50,7 @@ class StreamingClient(object):
 				if (streamedTo and streamedTo >= 0):
 					self.streamBuffer = self.streamBuffer[streamedTo:]
 				else:
-					self.streamBuffer = ""
+					self.streamBuffer = b""
 
 class TCPStreamingClient(StreamingClient):
 	def __init__(self, sock):
@@ -64,7 +64,7 @@ class TCPStreamingClient(StreamingClient):
 	def transmit(self, data):
 		try:
 			return self.sock.send(data)
-		except socket.error, e:
+		except socket.error as e:
 			self.connected = False
 			self.sock.close()
 

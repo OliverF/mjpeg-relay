@@ -1,24 +1,16 @@
 import sys
+sys.tracebacklimit = 0
 import socket
 import threading
-import time
-from optparse import OptionParser
 import os
-import Queue
-import re
 import logging
-import requests
-import base64
+from SimpleWebSocketServer import SimpleWebSocketServer
+from optparse import OptionParser
 from app.status import Status
 from app.broadcaster import Broadcaster
 from app.httprequesthandler import HTTPRequestHandler
 from app.streaming import WebSocketStreamingClient
-try:
-	from app.SimpleWebSocketServer.SimpleWebSocketServer import SimpleWebSocketServer
-except ImportError, e:
-	print "Failed to import dependency: {}".format(e)
-	print "Please ensure the SimpleWebSocketServer submodule has been correctly installed: git submodule update --init"
-	sys.exit(1)
+
 
 #
 # Close threads gracefully
@@ -42,14 +34,20 @@ if __name__ == '__main__':
 	(options, args) = op.parse_args()
 
 	if (len(args) != 1):
-		op.print_help()
-		sys.exit(1)
+		logging.info(f"ENV SOURCE_URL = {os.environ.get('SOURCE_URL', None)}")
+		if os.environ.get('SOURCE_URL', None) == None:
+			op.print_help()
+			sys.exit(1)
+		else:
+			source = os.environ.get('SOURCE_URL', None)
+	else:
+		source = args[0]
 
 	logging.basicConfig(level=logging.WARNING if options.quiet else logging.INFO, format="%(message)s")
 	logging.getLogger("requests").setLevel(logging.WARNING if options.quiet else logging.INFO)
 
 	if options.debug:
-		from httplib import HTTPConnection
+		from http.client import HTTPConnection
 		HTTPConnection.debuglevel = 1
 		logging.getLogger().setLevel(logging.DEBUG)
 		logging.getLogger("requests").setLevel(logging.DEBUG)
@@ -67,7 +65,7 @@ if __name__ == '__main__':
 	statusThread.daemon = True
 	statusThread.start()
 
-	broadcaster = Broadcaster(args[0])
+	broadcaster = Broadcaster(source)
 	broadcaster.start()
 
 	requestHandler = HTTPRequestHandler(options.port)
@@ -79,7 +77,7 @@ if __name__ == '__main__':
 	webSocketHandlerThread.start()
 
 	try:
-		while raw_input() != "quit":
+		while eval(input()) != "quit":
 			continue
 		quit()
 	except KeyboardInterrupt:
