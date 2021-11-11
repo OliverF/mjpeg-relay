@@ -92,11 +92,13 @@ class Broadcaster:
 		if (not isinstance(header, str)):
 			return None
 
-		match = re.search(r'boundary=(.*)', header, re.IGNORECASE)
+		# Match boundary with regexp according to https://datatracker.ietf.org/doc/html/rfc1521#section-7.2.1 7.2.1
+		match = re.search(r'boundary=\"?([a-zA-Z0-9\'\(\)\+\_\,\-\.\/\:\=\?\)]*)\"?', header, re.IGNORECASE)
 		try:
 			boundary = match.group(1)
 			if not boundary.startswith("--"):
 				boundary = "--" + boundary
+			
 			return boundary
 		except:
 			logging.error("Unexpected header returned from stream source: unable to parse boundary")
