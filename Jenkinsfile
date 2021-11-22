@@ -3,33 +3,37 @@ pipeline{
 	agent any
 
 	environment {
-		DOCKERHUB_CREDENTIALS=credentials("dockerhub-credential")
+		REGISTRY="hdavid0510/mjpeg-relay"
+		REGISTRY_CREDENTIALS='dockerhub-credential'
+		//TAG=":$BUILD_NUMBER"
+		TAG=":latest"
+		DOCKERIMAGE=''
 	}
 
 	stages {
 
 		stage('Build') {
 			steps {
-				sh 'docker build -t hdavid0510/mjpeg-relay:latest .'
-			}
-		}
-
-		stage('Login') {
-			steps {
-				sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+				script {
+					DOCKERIMAGE = docker.build REGISTRY + TAG
+				}
 			}
 		}
 
 		stage('Push') {
 			steps {
-				sh 'docker push hdavid0510/mjpeg-relay:latest'
+				script {
+					docker.withRegistry( '', REGISTRY_CREDENTIALS ){
+						dockerImage.push()
+					}
+				}
 			}
 		}
 	}
 
 	post {
 		always {
-			sh 'docker logout'
+			sh "docker rmi $REGISTRY:$TAG"
 		}
 	}
 
