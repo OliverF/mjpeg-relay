@@ -6,7 +6,7 @@ pipeline{
 		REGISTRY="hdavid0510/mjpeg-relay"
 		REGISTRY_CREDENTIALS='dockerhub-credential'
 		//TAG=":$BUILD_NUMBER"
-		TAG=":latest"
+		TAG="latest"
 		DOCKERIMAGE=''
 	}
 
@@ -15,7 +15,7 @@ pipeline{
 		stage('Build') {
 			steps {
 				script {
-					DOCKERIMAGE = docker.build REGISTRY + TAG
+					DOCKERIMAGE = docker.build REGISTRY + ":" + TAG
 				}
 			}
 		}
