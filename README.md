@@ -4,7 +4,7 @@ mjpeg-relay is a simple Python script which accepts input from an existing MJPEG
 
 The script is designed to be simple to use with minimal configuration. All video parameters are defined by the source stream, ensuring mjpeg-relay is as transparent as possible. Rather than creating its own MJPEG stream, mjpeg-relay simply re-streams the original MJPEG stream directly. This is a faster and more transparent approach.
 
-Python 3.6+ is required.
+**Python 3.6+ is required.**
 
 
 ## Features
@@ -58,7 +58,7 @@ Once it is running, you can access the following URLs:
 
 # mjpeg-relay Docker image
 
-[![](https://img.shields.io/docker/pulls/hdavid0510/mjpeg-relay?style=flat-square)](https://hub.docker.com/r/hdavid0510/mjpeg-relay) [![](https://img.shields.io/docker/cloud/build/hdavid0510/mjpeg-relay?style=flat-square)]() [![](https://img.shields.io/github/issues/hdavid0510/mjpeg-relay?style=flat-square)](https://github.com/hdavid0510/mjpeg-relay/issues)  
+[![](https://img.shields.io/docker/pulls/hdavid0510/mjpeg-relay?style=flat-square)](https://hub.docker.com/r/hdavid0510/mjpeg-relay) [![](https://img.shields.io/github/issues/hdavid0510/mjpeg-relay?style=flat-square)](https://github.com/hdavid0510/mjpeg-relay/issues)  
 Docker image which all the scripts in this repository is preinstalled on [python:alpine](https://hub.docker.com/r/_/python)
 
 
