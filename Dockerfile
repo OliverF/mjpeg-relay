@@ -1,4 +1,4 @@
-FROM python:alpine
+FROM --platform=$TARGETPLATFORM python:alpine
 
 ENV PYTHONUNBUFFERED=1
 ENV SOURCE_URL="http://localhost:8081/?action=stream"
