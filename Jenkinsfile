@@ -4,7 +4,7 @@ pipeline{
 
 	environment {
 		IMAGE_NAME="hdavid0510/mjpeg-relay"
-		IMAGE_TAG="dev"
+		IMAGE_TAG="latest"
 		REGISTRY_CREDENTIALS=credentials('dockerhub-credential')
 	}
 
