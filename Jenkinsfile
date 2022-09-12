@@ -4,7 +4,7 @@ pipeline{
 
 	environment {
 		IMAGE_NAME="hdavid0510/mjpeg-relay"
-		IMAGE_TAG="latest"
+		IMAGE_TAG="dev"
 		REGISTRY_CREDENTIALS=credentials('dockerhub-credential')
 	}
 
@@ -22,7 +22,7 @@ pipeline{
 			steps {
 				echo 'Building image and pushing to DockerHub.'
 
-				sh 'docker buildx build --push --platform linux/amd64,linux/arm/v7,linux/arm64 -t $IMAGE_NAME:$IMAGE_TAG .'
+				sh 'docker buildx build --push --platform linux/386,linux/amd64,linux/arm/v5,linux/arm/v7,linux/arm64,linux/mips64le,linux/ppc64le,linux/s390x -t $IMAGE_NAME:$IMAGE_TAG .'
 			}
 		}
 	}
