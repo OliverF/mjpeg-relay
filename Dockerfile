@@ -1,5 +1,11 @@
-from python:2.7-onbuild
+FROM --platform=$TARGETPLATFORM python:3.10-slim
 
-expose 54321
+ENV PYTHONUNBUFFERED=1
+ENV SOURCE_URL="http://localhost:8081/?action=stream"
 
-entrypoint ["python", "relay.py"]
+COPY . /
+RUN		pip3 install -r /requirements.txt
+
+EXPOSE 54321
+EXPOSE 54322
+CMD ["python", "/relay.py"]

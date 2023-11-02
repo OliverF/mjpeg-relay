@@ -2,9 +2,10 @@ import socket
 import threading
 import logging
 import re
-from status import Status
-from streaming import TCPStreamingClient
-from broadcaster import Broadcaster
+import traceback
+from .status import Status
+from .streaming import TCPStreamingClient
+from .broadcaster import Broadcaster
 
 class HTTPRequestHandler:
 	"""Handles the initial connection with HTTP clients"""
@@ -40,56 +41,57 @@ class HTTPRequestHandler:
 	# Thread to process client requests
 	#
 	def handleRequest(self, clientsock):
-		buff = ""
+		buff = bytearray()
 		while True:
 			try:
 				data = clientsock.recv(64)
-				if (data == ""):
+				if (data == b""):
 					break
 
-				buff += data
+				buff.extend(data)
 
-				if "\r\n\r\n" in buff or "\n\n" in buff:
+				if buff.find(b"\r\n\r\n") >= 0 or buff.find(b"\n\n") >= 0:
 					break #as soon as the header is sent - we only care about GET requests
 
-			except Exception, e:
-				logging.info(e)
+			except Exception as e:
+				logging.error(f"Error on importing request data to buffer")
+				traceback.print_exc()
 				break
 
-		if (buff != ""):
+		if (buff != b""):
 			try:
-				match = re.search(r'GET (.*) ', buff)
-
+				match = re.search(b'GET (.*) ', buff)
 				requestPath = match.group(1)
-			except Exception, e:
-				logging.info("Client sent unexpected request: {}".format(buff))
+			except Exception as e:
+				logging.error("Client sent unexpected request")
+				logging.debug(f"Request: {buff}")
 				return
 
 			#explicitly deal with individual requests. Verbose, but more secure
-			if ("/status" in requestPath):
-				clientsock.sendall('HTTP/1.0 200 OK\r\nContentType: text/html\r\n\r\n')
-				clientsock.sendall(self.statusHTML.format(clientcount = self.broadcast.getClientCount(), bwin = float(self.status.bandwidthIn*8)/1000000, bwout = float(self.status.bandwidthOut*8)/1000000))
+			if (b"/status" in requestPath):
+				clientsock.sendall(b'HTTP/1.0 200 OK\r\nContentType: text/html\r\n\r\n')
+				clientsock.sendall(self.statusHTML.format(clientcount = self.broadcast.getClientCount(), bwin = float(self.status.bandwidthIn*8)/1000000, bwout = float(self.status.bandwidthOut*8)/1000000).encode())
 				clientsock.close()
-			elif ("/style.css" in requestPath):
-				clientsock.sendall('HTTP/1.0 200 OK\r\nContentType: text/html\r\n\r\n')
-				clientsock.sendall(self.statusCSS)
+			elif (b"/style.css" in requestPath):
+				clientsock.sendall(b'HTTP/1.0 200 OK\r\nContentType: text/html\r\n\r\n')
+				clientsock.sendall(self.statusCSS.encode())
 				clientsock.close()
-			elif ("/stream" in requestPath):
+			elif (b"/stream" in requestPath):
 				if (self.broadcast.broadcasting):
-					clientsock.sendall(self.dummyHeader.format(boundaryKey = self.broadcast.boundarySeparator))
+					clientsock.sendall(self.dummyHeader.format(boundaryKey = self.broadcast.boundarySeparator.decode()).encode())
 					client = TCPStreamingClient(clientsock)
 					client.start()
 					self.broadcast.clients.append(client)
 				else:
 					clientsock.close()
-			elif ("/snapshot" in requestPath):
-				clientsock.sendall('HTTP/1.0 200 OK\r\n')
-				clientsock.sendall('Content-Type: image/jpeg\r\n')
-				clientsock.sendall('Content-Length: {}\r\n\r\n'.format(len(self.broadcast.lastFrame)))
+			elif (b"/snapshot" in requestPath):
+				clientsock.sendall(b'HTTP/1.0 200 OK\r\n')
+				clientsock.sendall(b'Content-Type: image/jpeg\r\n')
+				clientsock.sendall(f'Content-Length: {len(self.broadcast.lastFrame)}\r\n\r\n'.encode())
 				clientsock.sendall(self.broadcast.lastFrame)
 				clientsock.close()
 			else:
-				clientsock.sendall('HTTP/1.0 302 FOUND\r\nLocation: /status')
+				clientsock.sendall(b'HTTP/1.0 302 FOUND\r\nLocation: /status')
 				clientsock.close()
 		else:
 			logging.info("Client connected but didn't make a request")

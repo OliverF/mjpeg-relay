@@ -1,27 +1,29 @@
-import Queue
+import sys
+sys.tracebacklimit = 0
+import traceback
 import threading
 import logging
 import requests
 import re
 import time
 import base64
-from status import Status
+from .status import Status
 
 class HTTPBasicThenDigestAuth(requests.auth.HTTPDigestAuth):
 	"""Try HTTPBasicAuth, then HTTPDigestAuth."""
 
-        def __init__(self):
-                super(HTTPBasicThenDigestAuth, self).__init__(None, None)
+	def __init__(self):
+		super(HTTPBasicThenDigestAuth, self).__init__(None, None)
 
-        def __call__(self, r):
-                # Extract auth from URL
-                self.username, self.password = requests.utils.get_auth_from_url(r.url)
+	def __call__(self, r):
+		# Extract auth from URL
+		self.username, self.password = requests.utils.get_auth_from_url(r.url)
 
-                # Prepare basic auth
-                r = requests.auth.HTTPBasicAuth(self.username, self.password).__call__(r)
+		# Prepare basic auth
+		r = requests.auth.HTTPBasicAuth(self.username, self.password).__call__(r)
 
-                # Let HTTPDigestAuth handle the 401
-                return super(HTTPBasicThenDigestAuth, self).__call__(r)
+		# Let HTTPDigestAuth handle the 401
+		return super(HTTPBasicThenDigestAuth, self).__call__(r)
 
 class Broadcaster:
 	"""Handles relaying the source MJPEG stream to connected clients"""
@@ -40,8 +42,8 @@ class Broadcaster:
 		self.broadcastThread = threading.Thread(target = self.streamFromSource)
 		self.broadcastThread.daemon = True
 
-		self.lastFrame = ""
-		self.lastFrameBuffer = ""
+		self.lastFrame: bytes = b""
+		self.lastFrameBuffer: bytes = b""
 
 		self.connected = False
 		self.broadcasting = False
@@ -50,12 +52,11 @@ class Broadcaster:
 			feedLostFile = open("app/resources/feedlost.jpeg", "rb") #read-only, binary
 			feedLostImage = feedLostFile.read()
 			feedLostFile.close()
-
-			self.feedLostFrame = 	"Content-Type: image/jpeg\r\n"\
-									"Content-Length: {}\r\n\r\n"\
-									"{}".format(len(feedLostImage), feedLostImage)
-		except IOError, e:
-			logging.warning("Unable to read feedlost.jpeg: {}".format(e))
+			self.feedLostFrame = bytearray(f"Content-Type: image/jpeg\r\nContent-Length: {len(feedLostImage)}\r\n\r\n",'utf-8')
+			self.feedLostFrame.extend(feedLostImage)
+		except IOError as e:
+			logging.warning("Unable to read feedlost.jpeg")
+			# traceback.print_exc()
 			self.feedLostFrame = False
 
 		Broadcaster._instance = self
@@ -63,7 +64,7 @@ class Broadcaster:
 	def start(self):
 		if (self.connectToStream()):
 			self.broadcasting = True
-			logging.info("Connected to stream source, boundary separator: {}".format(self.boundarySeparator))
+			logging.info(f"Connected to stream source, boundary separator: {self.boundarySeparator}")
 			self.broadcastThread.start()
 
 	#
@@ -71,12 +72,17 @@ class Broadcaster:
 	#
 	def connectToStream(self):
 		try:
-			self.sourceStream = requests.get(self.url, stream = True, timeout = 10, auth = HTTPBasicThenDigestAuth())
-		except Exception, e:
-			logging.error("Error: Unable to connect to stream source at {}: {}".format(self.url, e))
+			self.sourceStream = requests.get(self.url, stream = True, timeout = 3, auth = HTTPBasicThenDigestAuth())
+		except Exception as e:
+			logging.error(f"[ERROR] Unable to connect to stream source at {self.url}")
+			traceback.print_exc()
 			return False
+		except:
+			logging.error("[ERROR] failed to connect to stream source.")
+			pass
+		
 
-		self.boundarySeparator = self.parseStreamHeader(self.sourceStream.headers['Content-Type'])
+		self.boundarySeparator: bytes = self.parseStreamHeader(self.sourceStream.headers['Content-Type']).encode()
 
 		if (not self.boundarySeparator):
 			logging.error("Unable to find boundary separator in the header returned from the stream source")
@@ -88,7 +94,7 @@ class Broadcaster:
 	#
 	# Parses the stream header and returns the boundary separator
 	#
-	def parseStreamHeader(self, header):
+	def parseStreamHeader(self, header) -> str:
 		if (not isinstance(header, str)):
 			return None
 
@@ -99,8 +105,8 @@ class Broadcaster:
 				boundary = "--" + boundary
 			return boundary
 		except:
-			logging.error("Unexpected header returned from stream source: unable to parse boundary")
-			logging.error(header)
+			logging.error("[ERROR] Unexpected header returned from stream source; unable to parse boundary")
+			logging.debug(f"header={header}")
 			return None
 
 	#
@@ -112,7 +118,7 @@ class Broadcaster:
 	#
 	# Process data in frame buffer, extract frames when present
 	#
-	def extractFrames(self, frameBuffer):
+	def extractFrames(self, frameBuffer: bytes):
 		if (frameBuffer.count(self.boundarySeparator) >= 2):
 			#calculate the start and end points of the frame
 			start = frameBuffer.find(self.boundarySeparator)
@@ -122,7 +128,7 @@ class Broadcaster:
 			mjpegFrame = frameBuffer[start:end]
 
 			#extract frame data
-			frameStart = frameBuffer.find("\r\n\r\n", start) + len("\r\n\r\n")
+			frameStart = frameBuffer.find(b"\r\n\r\n", start) + len(b"\r\n\r\n")
 			frame = frameBuffer[frameStart:end]
 
 			#process for WebSocket clients
@@ -135,17 +141,17 @@ class Broadcaster:
 	#
 	# Broadcast data to a list of StreamingClients
 	#
-	def broadcastToStreamingClients(self, clients, data):
+	def broadcastToStreamingClients(self, clients, data: bytes):
 		for client in clients:
 			if (not client.connected):
 				clients.remove(client)
-				logging.info("Client left. Client count: {}".format(self.getClientCount()))
+				logging.info(f"\nClient left; {self.getClientCount()} client(s) connected")
 			client.bufferStreamData(data)
 
 	#
 	# Broadcast data to all connected clients
 	#
-	def broadcast(self, data):
+	def broadcast(self, data: bytes):
 		self.lastFrameBuffer += data
 
 		mjpegFrame, webSocketFrame, frame, bufferProcessedTo = self.extractFrames(self.lastFrameBuffer)
@@ -177,15 +183,18 @@ class Broadcaster:
 					self.broadcast(data)
 					self.status.addToBytesIn(len(data))
 					self.status.addToBytesOut(len(data)*self.getClientCount())
-			except Exception, e:
-				logging.error("Lost connection to the stream source: {}".format(e))
+			except Exception as e:
+				logging.error(f"Lost connection to the stream source: \n")
 			finally:
 				#flush the frame buffer to avoid conflicting with future frame data
-				self.lastFrameBuffer = ""
+				self.lastFrameBuffer = b""
 				self.connected = False
 				while (not self.connected):
+					data_during_lost = bytearray(self.boundarySeparator)
+					data_during_lost.extend(b"\r\n")
+					data_during_lost.extend(self.feedLostFrame)
+					data_during_lost.extend(b"\r\n")
 					if (self.feedLostFrame):
-						data = self.boundarySeparator + "\r\n" + self.feedLostFrame + "\r\n"
-						self.broadcast(data)
+						self.broadcast(data_during_lost)
 					time.sleep(5)
 					self.connectToStream()
